@@ -16,24 +16,6 @@ import {
 // Shared easing for all welcome animations
 const E = [0.25, 0.46, 0.45, 0.94] as const;
 
-// Devicon class names keyed by technology name
-const DEV_ICON: Record<string, string> = {
-  Python: "devicon-python-plain colored",
-  JavaScript: "devicon-javascript-plain colored",
-  "C#": "devicon-csharp-plain colored",
-  Java: "devicon-java-plain colored",
-  React: "devicon-react-original colored",
-  Flask: "devicon-flask-original",
-  "ASP.Net": "devicon-dotnetcore-plain colored",
-  "Adobe Photoshop": "devicon-photoshop-plain colored",
-  Docker: "devicon-docker-plain colored",
-  Git: "devicon-git-plain colored",
-  GCP: "devicon-googlecloud-plain colored",
-  PostgreSQL: "devicon-postgresql-plain colored",
-  Processing: "",
-  SBOM: "",
-  "Zoho CRM": "",
-};
 
 const NAV_LINKS = ["About", "Skills", "Projects", "Contact"];
 
@@ -250,7 +232,7 @@ export default function Home() {
         <motion.div
           initial={{ x: "-30vw", opacity: 1 }}
           animate={{ x: 0, opacity: 0.055 }}
-          transition={{ duration: 1.1, delay: 0, ease: E }}
+          transition={{ duration: 1.1, delay: 0.2, ease: E }}
           style={{
             position: "absolute",
             right: "-40px",
@@ -643,69 +625,249 @@ export default function Home() {
           >
             {/* ── Row 1: Interests (full width, Gym + Gaming side by side) ── */}
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "32px" }}>
-                <div style={{ width: "36px", height: "3px", background: "#548687" }} />
-                <h4 style={{ fontSize: "10px", letterSpacing: "3px", textTransform: "uppercase", color: "#548687", fontWeight: 700, margin: 0 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "14px",
+                  marginBottom: "32px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "36px",
+                    height: "3px",
+                    background: "#548687",
+                  }}
+                />
+                <h4
+                  style={{
+                    fontSize: "10px",
+                    letterSpacing: "3px",
+                    textTransform: "uppercase",
+                    color: "#548687",
+                    fontWeight: 700,
+                    margin: 0,
+                  }}
+                >
                   Interests
                 </h4>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "32px" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                  gap: "32px",
+                }}
+              >
                 {/* Gym */}
-                <div style={{ padding: "24px", border: "1px solid rgba(176,65,62,0.2)", background: "rgba(176,65,62,0.04)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                <div
+                  style={{
+                    padding: "24px",
+                    border: "1px solid rgba(176,65,62,0.2)",
+                    background: "rgba(176,65,62,0.04)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginBottom: "12px",
+                    }}
+                  >
                     <Dumbbell size={16} color="#b0413e" />
-                    <span style={{ fontSize: "15px", fontWeight: 700, color: "#ffffc7", fontFamily: "var(--font-playfair), Georgia, serif", fontStyle: "italic" }}>
+                    <span
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 700,
+                        color: "#ffffc7",
+                        fontFamily: "var(--font-playfair), Georgia, serif",
+                        fontStyle: "italic",
+                      }}
+                    >
                       Gym
                     </span>
                   </div>
-                  <p className="ui-text" style={{ fontSize: "14px", color: "rgba(255,255,199,0.55)", lineHeight: 1.75, margin: 0 }}>
-                    Started out knowing nothing and building out to a result I&apos;m proud of. The process of learning, improving, and pushing limits is what hooked me — it&apos;s addicting, honestly.
+                  <p
+                    className="ui-text"
+                    style={{
+                      fontSize: "14px",
+                      color: "rgba(255,255,199,0.55)",
+                      lineHeight: 1.75,
+                      margin: 0,
+                    }}
+                  >
+                    Started out knowing nothing and building out to a result
+                    I&apos;m proud of. The process of learning, improving, and
+                    pushing limits is what hooked me — it&apos;s addicting,
+                    honestly.
                   </p>
                 </div>
                 {/* Gaming */}
-                <div style={{ padding: "24px", border: "1px solid rgba(84,134,135,0.2)", background: "rgba(84,134,135,0.04)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                <div
+                  style={{
+                    padding: "24px",
+                    border: "1px solid rgba(84,134,135,0.2)",
+                    background: "rgba(84,134,135,0.04)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginBottom: "12px",
+                    }}
+                  >
                     <Gamepad2 size={16} color="#548687" />
-                    <span style={{ fontSize: "15px", fontWeight: 700, color: "#ffffc7", fontFamily: "var(--font-playfair), Georgia, serif", fontStyle: "italic" }}>
+                    <span
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 700,
+                        color: "#ffffc7",
+                        fontFamily: "var(--font-playfair), Georgia, serif",
+                        fontStyle: "italic",
+                      }}
+                    >
                       Gaming
                     </span>
                   </div>
-                  <p className="ui-text" style={{ fontSize: "14px", color: "rgba(255,255,199,0.55)", lineHeight: 1.75, margin: 0 }}>
-                    Roguelites like <em>Hades</em> and <em>The Binding of Isaac</em>, where every run reshapes the experience. Competitive shooters like <em>CS2</em> for the mechanical and strategic depth. Sandbox games like <em>Minecraft</em>, especially technical modpacks with complex automations.
+                  <p
+                    className="ui-text"
+                    style={{
+                      fontSize: "14px",
+                      color: "rgba(255,255,199,0.55)",
+                      lineHeight: 1.75,
+                      margin: 0,
+                    }}
+                  >
+                    Roguelites like <em>Hades</em> and{" "}
+                    <em>The Binding of Isaac</em>, where every run reshapes the
+                    experience. Competitive shooters like <em>CS2</em> for the
+                    mechanical and strategic depth. Sandbox games like{" "}
+                    <em>Minecraft</em>, especially technical modpacks with
+                    complex automations.
                   </p>
                 </div>
               </div>
             </div>
 
             {/* ── Row 2: Languages + Location ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "32px" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gap: "32px",
+              }}
+            >
               {/* Languages */}
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "28px" }}>
-                  <div style={{ width: "36px", height: "3px", background: "#b0413e" }} />
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "14px",
+                    marginBottom: "28px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "3px",
+                      background: "#b0413e",
+                    }}
+                  />
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
                     <Globe size={13} color="#548687" />
-                    <h4 style={{ fontSize: "10px", letterSpacing: "3px", textTransform: "uppercase", color: "#548687", fontWeight: 700, margin: 0 }}>
+                    <h4
+                      style={{
+                        fontSize: "10px",
+                        letterSpacing: "3px",
+                        textTransform: "uppercase",
+                        color: "#548687",
+                        fontWeight: 700,
+                        margin: 0,
+                      }}
+                    >
                       Languages
                     </h4>
                   </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "20px",
+                  }}
+                >
                   {[
-                    { lang: "Dutch", level: "Native", pct: 100, accent: "#548687" },
-                    { lang: "English", level: "Fluent", pct: 90, accent: "#b0413e" },
+                    {
+                      lang: "Dutch",
+                      level: "Native",
+                      pct: 100,
+                      accent: "#548687",
+                    },
+                    {
+                      lang: "English",
+                      level: "Fluent",
+                      pct: 90,
+                      accent: "#b0413e",
+                    },
                   ].map(({ lang, level, pct, accent }) => (
                     <div key={lang}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-                        <span style={{ fontSize: "15px", fontWeight: 700, color: "#ffffc7", fontFamily: "var(--font-playfair), Georgia, serif", fontStyle: "italic" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: "10px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "15px",
+                            fontWeight: 700,
+                            color: "#ffffc7",
+                            fontFamily: "var(--font-playfair), Georgia, serif",
+                            fontStyle: "italic",
+                          }}
+                        >
                           {lang}
                         </span>
-                        <span style={{ fontSize: "11px", letterSpacing: "1.5px", textTransform: "uppercase", color: accent }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            letterSpacing: "1.5px",
+                            textTransform: "uppercase",
+                            color: accent,
+                          }}
+                        >
                           {level}
                         </span>
                       </div>
-                      <div style={{ height: "2px", background: "rgba(255,255,199,0.08)", position: "relative" }}>
-                        <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${pct}%`, background: accent }} />
+                      <div
+                        style={{
+                          height: "2px",
+                          background: "rgba(255,255,199,0.08)",
+                          position: "relative",
+                        }}
+                      >
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            top: 0,
+                            height: "100%",
+                            width: `${pct}%`,
+                            background: accent,
+                          }}
+                        />
                       </div>
                     </div>
                   ))}
@@ -714,19 +876,67 @@ export default function Home() {
 
               {/* Location */}
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "28px" }}>
-                  <div style={{ width: "36px", height: "3px", background: "#548687" }} />
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "14px",
+                    marginBottom: "28px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "3px",
+                      background: "#548687",
+                    }}
+                  />
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
                     <MapPin size={13} color="#548687" />
-                    <h4 style={{ fontSize: "10px", letterSpacing: "3px", textTransform: "uppercase", color: "#548687", fontWeight: 700, margin: 0 }}>
+                    <h4
+                      style={{
+                        fontSize: "10px",
+                        letterSpacing: "3px",
+                        textTransform: "uppercase",
+                        color: "#548687",
+                        fontWeight: 700,
+                        margin: 0,
+                      }}
+                    >
                       Location
                     </h4>
                   </div>
                 </div>
-                <span style={{ display: "block", fontSize: "clamp(22px, 3vw, 32px)", fontWeight: 700, color: "#ffffc7", fontFamily: "var(--font-playfair), Georgia, serif", fontStyle: "italic", lineHeight: 1.1, marginBottom: "10px" }}>
-                  Rotterdam,<br />Netherlands
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: "clamp(22px, 3vw, 32px)",
+                    fontWeight: 700,
+                    color: "#ffffc7",
+                    fontFamily: "var(--font-playfair), Georgia, serif",
+                    fontStyle: "italic",
+                    lineHeight: 1.1,
+                    marginBottom: "10px",
+                  }}
+                >
+                  Rotterdam,
+                  <br />
+                  Netherlands
                 </span>
-                <span className="ui-text" style={{ fontSize: "13px", color: "rgba(255,255,199,0.4)", letterSpacing: "1px" }}>
+                <span
+                  className="ui-text"
+                  style={{
+                    fontSize: "13px",
+                    color: "rgba(255,255,199,0.4)",
+                    letterSpacing: "1px",
+                  }}
+                >
                   Available for remote &amp; on-site
                 </span>
               </div>
@@ -846,12 +1056,6 @@ export default function Home() {
                           "rgba(84,134,135,0.28)";
                       }}
                     >
-                      {DEV_ICON[skill] && (
-                        <i
-                          className={DEV_ICON[skill]}
-                          style={{ fontSize: "15px", lineHeight: 1 }}
-                        />
-                      )}
                       {skill}
                     </span>
                   ))}
@@ -988,17 +1192,8 @@ export default function Home() {
                             textTransform: "uppercase",
                             border: `1px solid ${project.accent}55`,
                             color: project.accent,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
                           }}
                         >
-                          {DEV_ICON[t] !== undefined && DEV_ICON[t] !== "" && (
-                            <i
-                              className={DEV_ICON[t]}
-                              style={{ fontSize: "11px", lineHeight: 1 }}
-                            />
-                          )}
                           {t}
                         </span>
                       ))}
