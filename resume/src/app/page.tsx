@@ -108,11 +108,14 @@ export default function Home() {
   const [cursorVisible, setCursorVisible] = useState(false);
   const [cursorX, setCursorX] = useState(0);
   const [cursorY, setCursorY] = useState(0);
+  const [cursorOffsetX, setCursorOffsetX] = useState(0);
+  const [cursorOffsetY, setCursorOffsetY] = useState(0);
   const [cursorClicking, setCursorClicking] = useState(false);
   const [cursorFading, setCursorFading] = useState(false);
   const [projectRipple, setProjectRipple] = useState(false);
   const firstProjectRef = useRef<HTMLDivElement>(null);
   const projectsTriggered = useRef(false);
+  const cursorTrackingRef = useRef(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
@@ -145,19 +148,24 @@ export default function Home() {
           const t0 = setTimeout(() => {
             if (!firstProjectRef.current) return;
             const rect = firstProjectRef.current.getBoundingClientRect();
-            const tx = rect.right - 25;
-            const ty = rect.top + rect.height / 2;
-            setCursorX(tx + 55);
-            setCursorY(ty + 45);
+            setCursorX(rect.right - 25);
+            setCursorY(rect.top + rect.height / 2);
+            setCursorOffsetX(55);
+            setCursorOffsetY(45);
             setCursorVisible(true);
-            const t1 = setTimeout(() => { setCursorX(tx); setCursorY(ty); }, 60);
-            const t2 = setTimeout(() => { setCursorClicking(true); setProjectRipple(true); }, 960);
-            const t3 = setTimeout(() => { setActiveProject(0); }, 1100);
-            const t4 = setTimeout(() => { setCursorClicking(false); }, 1260);
-            const t5 = setTimeout(() => { setCursorFading(true); }, 1500);
-            const t6 = setTimeout(() => { setCursorVisible(false); setCursorFading(false); }, 1950);
+            cursorTrackingRef.current = true;
+            const t1 = setTimeout(() => { setCursorOffsetX(0); setCursorOffsetY(0); }, 60);
+            const t2 = setTimeout(() => {
+              cursorTrackingRef.current = false;
+              setCursorClicking(true);
+              setProjectRipple(true);
+            }, 660);
+            const t3 = setTimeout(() => { setActiveProject(0); }, 800);
+            const t4 = setTimeout(() => { setCursorClicking(false); }, 950);
+            const t5 = setTimeout(() => { setCursorFading(true); }, 1100);
+            const t6 = setTimeout(() => { setCursorVisible(false); setCursorFading(false); }, 1550);
             timeouts.push(t1, t2, t3, t4, t5, t6);
-          }, 700);
+          }, 400);
           timeouts.push(t0);
         }
       },
@@ -169,6 +177,18 @@ export default function Home() {
       timeouts.forEach(clearTimeout);
     };
   }, []);
+
+  useEffect(() => {
+    if (!cursorVisible) return;
+    const onScroll = () => {
+      if (!cursorTrackingRef.current || !firstProjectRef.current) return;
+      const rect = firstProjectRef.current.getBoundingClientRect();
+      setCursorX(rect.right - 25);
+      setCursorY(rect.top + rect.height / 2);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [cursorVisible]);
 
   return (
     <main style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}>
@@ -1504,33 +1524,45 @@ export default function Home() {
             position: "fixed",
             left: cursorX,
             top: cursorY,
-            transform: `translate(-50%, -50%) scale(${cursorClicking ? 0.65 : 1})`,
-            width: "20px",
-            height: "20px",
-            borderRadius: "50%",
-            border: "1.5px solid rgba(255,255,199,0.8)",
-            background: cursorClicking
-              ? "rgba(255,255,199,0.22)"
-              : "rgba(255,255,199,0.06)",
             pointerEvents: "none",
             zIndex: 9999,
-            transition:
-              "left 0.85s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.85s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.13s ease, background 0.13s ease, opacity 0.4s ease",
-            opacity: cursorFading ? 0 : 1,
           }}
         >
           <div
             style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: "4px",
-              height: "4px",
-              borderRadius: "50%",
-              background: "rgba(255,255,199,0.9)",
+              transform: `translate(${cursorOffsetX}px, ${cursorOffsetY}px)`,
+              transition:
+                "transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease",
+              opacity: cursorFading ? 0 : 1,
             }}
-          />
+          >
+            <div
+              style={{
+                transform: `translate(-50%, -50%) scale(${cursorClicking ? 0.65 : 1})`,
+                transition: "transform 0.13s ease, background 0.13s ease",
+                width: "20px",
+                height: "20px",
+                borderRadius: "50%",
+                border: "1.5px solid rgba(255,255,199,0.8)",
+                background: cursorClicking
+                  ? "rgba(255,255,199,0.22)"
+                  : "rgba(255,255,199,0.06)",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: "4px",
+                  height: "4px",
+                  borderRadius: "50%",
+                  background: "rgba(255,255,199,0.9)",
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
       {projectRipple && (
