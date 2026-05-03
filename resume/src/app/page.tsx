@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
   ArrowRight,
@@ -105,6 +105,14 @@ const EDUCATION = [
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [activeProject, setActiveProject] = useState<number | null>(null);
+  const [cursorVisible, setCursorVisible] = useState(false);
+  const [cursorX, setCursorX] = useState(0);
+  const [cursorY, setCursorY] = useState(0);
+  const [cursorClicking, setCursorClicking] = useState(false);
+  const [cursorFading, setCursorFading] = useState(false);
+  const [projectRipple, setProjectRipple] = useState(false);
+  const firstProjectRef = useRef<HTMLDivElement>(null);
+  const projectsTriggered = useRef(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
@@ -123,6 +131,43 @@ export default function Home() {
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const section = document.getElementById("projects");
+    if (!section) return;
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !projectsTriggered.current) {
+          projectsTriggered.current = true;
+          const t0 = setTimeout(() => {
+            if (!firstProjectRef.current) return;
+            const rect = firstProjectRef.current.getBoundingClientRect();
+            const tx = rect.right - 25;
+            const ty = rect.top + rect.height / 2;
+            setCursorX(tx + 55);
+            setCursorY(ty + 45);
+            setCursorVisible(true);
+            const t1 = setTimeout(() => { setCursorX(tx); setCursorY(ty); }, 60);
+            const t2 = setTimeout(() => { setCursorClicking(true); setProjectRipple(true); }, 960);
+            const t3 = setTimeout(() => { setActiveProject(0); }, 1100);
+            const t4 = setTimeout(() => { setCursorClicking(false); }, 1260);
+            const t5 = setTimeout(() => { setCursorFading(true); }, 1500);
+            const t6 = setTimeout(() => { setCursorVisible(false); setCursorFading(false); }, 1950);
+            timeouts.push(t1, t2, t3, t4, t5, t6);
+          }, 700);
+          timeouts.push(t0);
+        }
+      },
+      { threshold: 0.25 },
+    );
+    io.observe(section);
+    return () => {
+      io.disconnect();
+      timeouts.forEach(clearTimeout);
+    };
   }, []);
 
   return (
@@ -1128,6 +1173,7 @@ export default function Home() {
                 }}
               >
                 <div
+                  ref={i === 0 ? firstProjectRef : undefined}
                   style={{
                     display: "grid",
                     gridTemplateColumns: "clamp(64px, 9vw, 108px) 1fr 50px",
@@ -1451,6 +1497,59 @@ export default function Home() {
           © 2025 — All Rights Reserved
         </span>
       </footer>
+
+      {cursorVisible && (
+        <div
+          style={{
+            position: "fixed",
+            left: cursorX,
+            top: cursorY,
+            transform: `translate(-50%, -50%) scale(${cursorClicking ? 0.65 : 1})`,
+            width: "20px",
+            height: "20px",
+            borderRadius: "50%",
+            border: "1.5px solid rgba(255,255,199,0.8)",
+            background: cursorClicking
+              ? "rgba(255,255,199,0.22)"
+              : "rgba(255,255,199,0.06)",
+            pointerEvents: "none",
+            zIndex: 9999,
+            transition:
+              "left 0.85s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.85s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.13s ease, background 0.13s ease, opacity 0.4s ease",
+            opacity: cursorFading ? 0 : 1,
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "4px",
+              height: "4px",
+              borderRadius: "50%",
+              background: "rgba(255,255,199,0.9)",
+            }}
+          />
+        </div>
+      )}
+      {projectRipple && (
+        <div
+          style={{
+            position: "fixed",
+            left: cursorX - 20,
+            top: cursorY - 20,
+            width: "40px",
+            height: "40px",
+            borderRadius: "50%",
+            border: "1px solid rgba(255,255,199,0.4)",
+            pointerEvents: "none",
+            zIndex: 9998,
+            animation: "rippleOut 0.7s ease forwards",
+          }}
+          onAnimationEnd={() => setProjectRipple(false)}
+        />
+      )}
     </main>
   );
 }
