@@ -10,19 +10,68 @@ import {
   Globe,
   Mail,
   MapPin,
+  Menu,
   Plus,
+  X,
 } from "lucide-react";
 
 // Shared easing for all welcome animations
 const E = [0.25, 0.46, 0.45, 0.94] as const;
 
-
 const NAV_LINKS = ["About", "Skills", "Projects", "Contact"];
 
-const SKILLS = {
-  Languages: ["Python", "JavaScript", "C#", "Java"],
-  Frameworks: ["React", "Flask", "ASP.Net"],
-  Tools: ["Adobe Photoshop", "Docker", "Git", "GCP"],
+type SkillLevel = "once" | "familiar" | "comfortable";
+
+const LEVEL_META: Record<
+  SkillLevel,
+  { label: string; color: string; bg: string; border: string }
+> = {
+  once: {
+    label: "Used once or twice",
+    color: "rgba(80,80,80,0.7)",
+    bg: "rgba(120,120,120,0.14)",
+    border: "rgba(120,120,120,0.35)",
+  },
+  familiar: {
+    label: "Familiar with it",
+    color: "#548687",
+    bg: "rgba(84,134,135,0.2)",
+    border: "rgba(84,134,135,0.6)",
+  },
+  comfortable: {
+    label: "Comfortable with it",
+    color: "#b0413e",
+    bg: "rgba(176,65,62,0.18)",
+    border: "rgba(176,65,62,0.6)",
+  },
+};
+
+const SKILLS: Record<string, { name: string; level: SkillLevel }[]> = {
+  Languages: [
+    { name: "Python", level: "comfortable" },
+    { name: "JavaScript", level: "comfortable" },
+    { name: "C#", level: "comfortable" },
+    { name: "Java", level: "once" },
+  ],
+  Frameworks: [
+    { name: "React", level: "comfortable" },
+    { name: "Flask", level: "comfortable" },
+    { name: "ASP.Net", level: "once" },
+    { name: "Next.js", level: "familiar" },
+  ],
+  Tools: [
+    { name: "Git", level: "comfortable" },
+    { name: "Docker", level: "familiar" },
+    { name: "GCP", level: "familiar" },
+    { name: "Adobe Photoshop", level: "familiar" },
+    { name: "Claude Code", level: "comfortable" },
+    { name: "Github Actions", level: "once" },
+  ],
+  Databases: [
+    { name: "PostgreSQL", level: "once" },
+    { name: "MongoDB", level: "familiar" },
+    { name: "Google Firestore", level: "once" },
+  ],
 };
 
 const PROJECTS = [
@@ -70,6 +119,17 @@ const PROJECTS = [
       "OAuth2 auth flows, multi-tenant database design, GCP deployment (Cloud Run, Cloud SQL), and what it actually means to ship production software.",
     accent: "#548687",
   },
+  {
+    num: "05",
+    title: "New York Taxi Prediction",
+    subtitle: "Minor Project — Data Science",
+    tech: ["Python", "Pandas", "Matplotlib", "Scikit-learn"],
+    description:
+      "A data science project analyzing a dataset of New York City taxi trips to predict trip durations based on various features. The project involved data cleaning, exploratory analysis, feature engineering, and building models with linear regression, XGBoost and Prophet.",
+    learnings:
+      "The first step into Data Science — data cleaning, feature engineering, and the basics of predictive modeling. A great reminder that raw data is messy and insights come from the work put into understanding it.",
+    accent: "#b0413e",
+  },
 ];
 
 const EDUCATION = [
@@ -96,7 +156,7 @@ const EDUCATION = [
     institution: "Hogeschool Rotterdam",
     type: "Informatica · Computer Science",
     description:
-      "Currently studying Computer Science with a focus on full stack development. Every project, every course, and every late debugging session has sharpened both the skill set and the drive to build things that matter.",
+      "Currently studying Computer Science with a focus on full stack development and a completed minor in Data Science. Every project, every course, and every late debugging session has sharpened both the skill set and the drive to build things that matter.",
     highlight: "Currently enrolled — full stack development",
     accent: "#548687",
   },
@@ -104,6 +164,8 @@ const EDUCATION = [
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [activeProject, setActiveProject] = useState<number | null>(null);
   const [cursorVisible, setCursorVisible] = useState(false);
   const [cursorX, setCursorX] = useState(0);
@@ -121,6 +183,13 @@ export default function Home() {
     const onScroll = () => setScrolled(window.scrollY > 60);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   useEffect(() => {
@@ -154,16 +223,28 @@ export default function Home() {
             setCursorOffsetY(45);
             setCursorVisible(true);
             cursorTrackingRef.current = true;
-            const t1 = setTimeout(() => { setCursorOffsetX(0); setCursorOffsetY(0); }, 60);
+            const t1 = setTimeout(() => {
+              setCursorOffsetX(0);
+              setCursorOffsetY(0);
+            }, 60);
             const t2 = setTimeout(() => {
               cursorTrackingRef.current = false;
               setCursorClicking(true);
               setProjectRipple(true);
             }, 660);
-            const t3 = setTimeout(() => { setActiveProject(0); }, 800);
-            const t4 = setTimeout(() => { setCursorClicking(false); }, 950);
-            const t5 = setTimeout(() => { setCursorFading(true); }, 1100);
-            const t6 = setTimeout(() => { setCursorVisible(false); setCursorFading(false); }, 1550);
+            const t3 = setTimeout(() => {
+              setActiveProject(0);
+            }, 800);
+            const t4 = setTimeout(() => {
+              setCursorClicking(false);
+            }, 950);
+            const t5 = setTimeout(() => {
+              setCursorFading(true);
+            }, 1100);
+            const t6 = setTimeout(() => {
+              setCursorVisible(false);
+              setCursorFading(false);
+            }, 1550);
             timeouts.push(t1, t2, t3, t4, t5, t6);
           }, 400);
           timeouts.push(t0);
@@ -203,7 +284,9 @@ export default function Home() {
           left: 0,
           right: 0,
           zIndex: 999,
-          padding: scrolled ? "14px 56px" : "28px 56px",
+          padding: scrolled
+            ? `14px ${isMobile ? "20px" : "56px"}`
+            : `28px ${isMobile ? "20px" : "56px"}`,
           background: scrolled ? "rgba(84,134,135,0.96)" : "transparent",
           backdropFilter: scrolled ? "blur(16px)" : "none",
           display: "flex",
@@ -224,28 +307,83 @@ export default function Home() {
         >
           KH
         </span>
-        <div style={{ display: "flex", gap: "36px" }}>
+        {isMobile ? (
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#ffffc7",
+              cursor: "pointer",
+              padding: "4px",
+              display: "flex",
+              alignItems: "center",
+            }}
+            aria-label="Toggle menu"
+          >
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        ) : (
+          <div style={{ display: "flex", gap: "36px" }}>
+            {NAV_LINKS.map((link) => (
+              <a
+                key={link}
+                href={`#${link.toLowerCase()}`}
+                style={{
+                  color: "#ffffc7",
+                  textDecoration: "none",
+                  fontSize: "11px",
+                  letterSpacing: "2.5px",
+                  textTransform: "uppercase",
+                  opacity: 0.75,
+                  transition: "opacity 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.75")}
+              >
+                {link}
+              </a>
+            ))}
+          </div>
+        )}
+      </motion.nav>
+
+      {/* ── MOBILE MENU OVERLAY ── */}
+      {isMobile && menuOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 998,
+            background: "rgba(84,134,135,0.98)",
+            backdropFilter: "blur(12px)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "44px",
+          }}
+        >
           {NAV_LINKS.map((link) => (
             <a
               key={link}
               href={`#${link.toLowerCase()}`}
+              onClick={() => setMenuOpen(false)}
               style={{
                 color: "#ffffc7",
                 textDecoration: "none",
-                fontSize: "11px",
-                letterSpacing: "2.5px",
-                textTransform: "uppercase",
-                opacity: 0.75,
-                transition: "opacity 0.2s",
+                fontSize: "36px",
+                fontWeight: 700,
+                fontStyle: "italic",
+                letterSpacing: "-0.5px",
+                opacity: 0.9,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.75")}
             >
               {link}
             </a>
           ))}
         </div>
-      </motion.nav>
+      )}
 
       {/* ── HERO ── */}
       <section
@@ -358,7 +496,7 @@ export default function Home() {
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.7, delay: 0.55, ease: E }}
             style={{
-              fontSize: "clamp(52px, 9vw, 116px)",
+              fontSize: "clamp(42px, 9vw, 116px)",
               fontWeight: 700,
               color: "#ffffc7",
               lineHeight: 0.95,
@@ -552,62 +690,28 @@ export default function Home() {
               className="reveal"
               style={{ transitionDelay: `${i * 0.15}s` }}
             >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "clamp(96px, 13vw, 152px) 32px 1fr",
-                  gap: "0 28px",
-                  paddingBottom: i < EDUCATION.length - 1 ? "60px" : "0",
-                }}
-              >
-                {/* Year */}
-                <div style={{ textAlign: "right", paddingTop: "2px" }}>
+              {isMobile ? (
+                /* Mobile: stacked with left accent border */
+                <div
+                  style={{
+                    paddingLeft: "20px",
+                    borderLeft: `2px solid ${item.accent}55`,
+                    paddingBottom: i < EDUCATION.length - 1 ? "48px" : "0",
+                  }}
+                >
                   <span
                     style={{
-                      fontSize: "clamp(11px, 1.2vw, 13px)",
+                      display: "block",
+                      fontSize: "11px",
                       letterSpacing: "1px",
                       color: item.accent,
                       fontWeight: 700,
                       fontStyle: "italic",
-                      whiteSpace: "nowrap",
+                      marginBottom: "10px",
                     }}
                   >
                     {item.years}
                   </span>
-                </div>
-
-                {/* Timeline spine */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "10px",
-                      height: "10px",
-                      borderRadius: "50%",
-                      background: item.accent,
-                      flexShrink: 0,
-                      marginTop: "3px",
-                    }}
-                  />
-                  {i < EDUCATION.length - 1 && (
-                    <div
-                      style={{
-                        width: "1px",
-                        flex: 1,
-                        marginTop: "10px",
-                        background: `linear-gradient(to bottom, ${item.accent}50, rgba(255,255,199,0.06))`,
-                      }}
-                    />
-                  )}
-                </div>
-
-                {/* Content */}
-                <div style={{ paddingBottom: "4px" }}>
                   <span
                     style={{
                       display: "block",
@@ -623,11 +727,11 @@ export default function Home() {
                   </span>
                   <h3
                     style={{
-                      fontSize: "clamp(20px, 2.5vw, 30px)",
+                      fontSize: "clamp(18px, 5vw, 26px)",
                       fontWeight: 700,
                       color: "#ffffc7",
                       lineHeight: 1.2,
-                      marginBottom: "16px",
+                      marginBottom: "14px",
                     }}
                   >
                     {item.institution}
@@ -635,10 +739,9 @@ export default function Home() {
                   <p
                     style={{
                       color: "rgba(255,255,199,0.6)",
-                      fontSize: "16px",
+                      fontSize: "15px",
                       lineHeight: 1.85,
-                      maxWidth: "580px",
-                      marginBottom: "18px",
+                      marginBottom: "16px",
                     }}
                   >
                     {item.description}
@@ -672,7 +775,130 @@ export default function Home() {
                     </span>
                   </div>
                 </div>
-              </div>
+              ) : (
+                /* Desktop: 3-column grid with spine */
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "clamp(96px, 13vw, 152px) 32px 1fr",
+                    gap: "0 28px",
+                    paddingBottom: i < EDUCATION.length - 1 ? "60px" : "0",
+                  }}
+                >
+                  {/* Year */}
+                  <div style={{ textAlign: "right", paddingTop: "2px" }}>
+                    <span
+                      style={{
+                        fontSize: "clamp(11px, 1.2vw, 13px)",
+                        letterSpacing: "1px",
+                        color: item.accent,
+                        fontWeight: 700,
+                        fontStyle: "italic",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.years}
+                    </span>
+                  </div>
+
+                  {/* Timeline spine */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "10px",
+                        height: "10px",
+                        borderRadius: "50%",
+                        background: item.accent,
+                        flexShrink: 0,
+                        marginTop: "3px",
+                      }}
+                    />
+                    {i < EDUCATION.length - 1 && (
+                      <div
+                        style={{
+                          width: "1px",
+                          flex: 1,
+                          marginTop: "10px",
+                          background: `linear-gradient(to bottom, ${item.accent}50, rgba(255,255,199,0.06))`,
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div style={{ paddingBottom: "4px" }}>
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: "10px",
+                        letterSpacing: "2.5px",
+                        textTransform: "uppercase",
+                        color: "rgba(255,255,199,0.35)",
+                        fontWeight: 600,
+                        marginBottom: "10px",
+                      }}
+                    >
+                      {item.type}
+                    </span>
+                    <h3
+                      style={{
+                        fontSize: "clamp(20px, 2.5vw, 30px)",
+                        fontWeight: 700,
+                        color: "#ffffc7",
+                        lineHeight: 1.2,
+                        marginBottom: "16px",
+                      }}
+                    >
+                      {item.institution}
+                    </h3>
+                    <p
+                      style={{
+                        color: "rgba(255,255,199,0.6)",
+                        fontSize: "16px",
+                        lineHeight: 1.85,
+                        maxWidth: "580px",
+                        marginBottom: "18px",
+                      }}
+                    >
+                      {item.description}
+                    </p>
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "7px 14px",
+                        border: `1px solid ${item.accent}40`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "5px",
+                          height: "5px",
+                          borderRadius: "50%",
+                          background: item.accent,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span
+                        style={{
+                          color: item.accent,
+                          fontSize: "13px",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {item.highlight}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
 
@@ -1053,10 +1279,51 @@ export default function Home() {
                 fontWeight: 700,
                 color: "#1a1a1a",
                 lineHeight: 1.05,
+                marginBottom: "28px",
               }}
             >
               Skills & <span style={{ color: "#548687" }}>Technologies</span>
             </h2>
+            {/* Legend */}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "20px",
+              }}
+            >
+              {(
+                Object.entries(LEVEL_META) as [
+                  SkillLevel,
+                  (typeof LEVEL_META)[SkillLevel],
+                ][]
+              ).map(([, { label, color, bg, border }]) => (
+                <div
+                  key={label}
+                  className="ui-text"
+                  style={{ display: "flex", alignItems: "center", gap: "7px" }}
+                >
+                  <div
+                    style={{
+                      width: "18px",
+                      height: "14px",
+                      background: bg,
+                      border: `1px solid ${border}`,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      letterSpacing: "0.5px",
+                      color: "rgba(26,26,26,0.5)",
+                    }}
+                  >
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div
@@ -1093,37 +1360,40 @@ export default function Home() {
                   {category}
                 </h3>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                  {items.map((skill) => (
-                    <span
-                      key={skill}
-                      className="ui-text"
-                      style={{
-                        padding: "7px 14px",
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        border: "1px solid rgba(84,134,135,0.28)",
-                        color: "#1a1a1a",
-                        transition: "all 0.22s ease",
-                        cursor: "default",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "7px",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#548687";
-                        e.currentTarget.style.color = "#ffffc7";
-                        e.currentTarget.style.borderColor = "#548687";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "";
-                        e.currentTarget.style.color = "#1a1a1a";
-                        e.currentTarget.style.borderColor =
-                          "rgba(84,134,135,0.28)";
-                      }}
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                  {items.map(({ name, level }) => {
+                    const meta = LEVEL_META[level];
+                    return (
+                      <span
+                        key={name}
+                        className="ui-text"
+                        style={{
+                          padding: "7px 14px",
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          border: `1px solid ${meta.border}`,
+                          background: meta.bg,
+                          color: "#1a1a1a",
+                          transition: "all 0.22s ease",
+                          cursor: "default",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#548687";
+                          e.currentTarget.style.color = "#ffffc7";
+                          e.currentTarget.style.borderColor = "#548687";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = meta.bg;
+                          e.currentTarget.style.color = "#1a1a1a";
+                          e.currentTarget.style.borderColor = meta.border;
+                        }}
+                      >
+                        {name}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -1196,8 +1466,10 @@ export default function Home() {
                   ref={i === 0 ? firstProjectRef : undefined}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "clamp(64px, 9vw, 108px) 1fr 50px",
-                    gap: "28px",
+                    gridTemplateColumns: isMobile
+                      ? "48px 1fr 40px"
+                      : "clamp(64px, 9vw, 108px) 1fr 50px",
+                    gap: isMobile ? "16px" : "28px",
                     alignItems: "center",
                     cursor: "pointer",
                     paddingLeft: activeProject === i ? "20px" : "0",
@@ -1209,7 +1481,7 @@ export default function Home() {
                 >
                   <span
                     style={{
-                      fontSize: "clamp(40px, 5vw, 56px)",
+                      fontSize: isMobile ? "32px" : "clamp(40px, 5vw, 56px)",
                       fontWeight: 700,
                       fontStyle: "italic",
                       color: project.accent,
@@ -1449,9 +1721,13 @@ export default function Home() {
               projects. Don&apos;t hesitate to reach out.
             </p>
             <a
-              href="mailto:hello@kh.dev"
+              href="https://www.linkedin.com/in/kieran-van-der-heijden-320166297/"
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
-                display: "inline-block",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
                 padding: "16px 40px",
                 background: "#b0413e",
                 color: "#ffffc7",
@@ -1472,15 +1748,16 @@ export default function Home() {
                 e.currentTarget.style.boxShadow = "";
               }}
             >
-              <Mail
-                size={14}
-                style={{
-                  display: "inline",
-                  verticalAlign: "middle",
-                  marginRight: "8px",
-                }}
-              />
-              Say Hello
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+              </svg>
+              LinkedIn
             </a>
           </div>
         </div>
@@ -1514,7 +1791,7 @@ export default function Home() {
             letterSpacing: "1.5px",
           }}
         >
-          © 2025 — All Rights Reserved
+          2026 Portfolio
         </span>
       </footer>
 
