@@ -15,7 +15,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "KH — Portfolio",
+  title: "Portfolio - Kieran v/d Heijden",
   description: "Developer, creator, builder.",
 };
 
