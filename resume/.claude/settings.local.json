@@ -1,5 +1,15 @@
 {
   "permissions": {
     "allow": []
+  },
+  "mcpServers": {
+    "magic-ui": {
+      "command": "npx",
+      "args": ["-y", "@magicui/mcp"]
+    },
+    "aceternity-ui": {
+      "command": "npx",
+      "args": ["-y", "@aceternity/mcp"]
+    }
   }
 }
