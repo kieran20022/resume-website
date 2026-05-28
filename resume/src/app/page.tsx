@@ -130,6 +130,24 @@ const PROJECTS = [
       "The first step into Data Science — data cleaning, feature engineering, and the basics of predictive modeling. A great reminder that raw data is messy and insights come from the work put into understanding it.",
     accent: "#b0413e",
   },
+  {
+    num: "06",
+    title: "Delirium Prediction Capstone Project",
+    subtitle: "Internal Minor Project — Machine Learning [In Progress]",
+    tech: [
+      "Python",
+      "Pandas",
+      "Scikit-learn",
+      "XGBoost",
+      "Random Forest",
+      "LSTM",
+    ],
+    description:
+      "A capstone project focusing on predicting delirium in hospitalized patients using machine learning techniques. The project involved data preprocessing, feature selection, and model training with various algorithms. This project also includes the writing of a scientific paper detailing the methodology and results.",
+    learnings:
+      "A step further into machine learning. Working with bigger datasets, more complex preprocessing, and more advanced models.",
+    accent: "#548687",
+  },
 ];
 
 const EDUCATION = [
