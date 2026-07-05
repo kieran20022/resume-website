@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowRight,
   ChevronDown,
   Dumbbell,
   Gamepad2,
   Globe,
-  Mail,
   MapPin,
   Menu,
   Plus,
@@ -20,6 +19,10 @@ const E = [0.25, 0.46, 0.45, 0.94] as const;
 
 const NAV_LINKS = ["About", "Skills", "Projects", "Contact"];
 
+/* ────────────────────────────────────────────────────────────────
+   Ripple hover effect
+   ──────────────────────────────────────────────────────────────── */
+
 type RippleState = {
   x: number;
   y: number;
@@ -30,6 +33,14 @@ type RippleState = {
 function useRipple() {
   const [ripple, setRipple] = useState<RippleState>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear the pending timer on unmount so we never setState on a dead component
+  useEffect(
+    () => () => {
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    },
+    [],
+  );
 
   const onMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
     if (leaveTimer.current) clearTimeout(leaveTimer.current);
@@ -60,6 +71,7 @@ function RippleFill({ ripple, color }: { ripple: RippleState; color: string }) {
   if (!ripple) return null;
   return (
     <span
+      aria-hidden="true"
       style={{
         position: "absolute",
         left: ripple.x - ripple.size / 2,
@@ -102,15 +114,11 @@ function Rippleable<T extends React.ElementType>({
       style={{ position: "relative", overflow: "hidden", ...style }}
       onMouseEnter={(e: React.MouseEvent<HTMLElement>) => {
         ripple.onMouseEnter(e);
-        (onMouseEnter as React.MouseEventHandler<HTMLElement> | undefined)?.(
-          e,
-        );
+        (onMouseEnter as React.MouseEventHandler<HTMLElement> | undefined)?.(e);
       }}
       onMouseLeave={(e: React.MouseEvent<HTMLElement>) => {
         ripple.onMouseLeave();
-        (onMouseLeave as React.MouseEventHandler<HTMLElement> | undefined)?.(
-          e,
-        );
+        (onMouseLeave as React.MouseEventHandler<HTMLElement> | undefined)?.(e);
       }}
     >
       <RippleFill ripple={ripple.ripple} color={rippleColor} />
@@ -118,6 +126,10 @@ function Rippleable<T extends React.ElementType>({
     </Component>
   );
 }
+
+/* ────────────────────────────────────────────────────────────────
+   Skills data + shapes
+   ──────────────────────────────────────────────────────────────── */
 
 type SkillLevel = "once" | "familiar" | "comfortable";
 type SkillShape = "circle" | "triangle" | "square";
@@ -166,6 +178,7 @@ function ShapeIcon({
 }) {
   return (
     <span
+      aria-hidden="true"
       style={{
         width: size,
         height: size,
@@ -325,6 +338,91 @@ const EDUCATION = [
   },
 ];
 
+/* ────────────────────────────────────────────────────────────────
+   Small shared building blocks
+   ──────────────────────────────────────────────────────────────── */
+
+/** The recurring "accent line + uppercase label" section eyebrow. */
+function Eyebrow({
+  label,
+  color = "#b0413e",
+  style,
+}: {
+  label: string;
+  color?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "14px",
+        marginBottom: "20px",
+        ...style,
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{ width: "44px", height: "1.5px", background: color }}
+      />
+      <span
+        style={{
+          color,
+          fontSize: "11px",
+          letterSpacing: "3px",
+          textTransform: "uppercase",
+          fontWeight: 700,
+        }}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/** The smaller "thick accent line + tiny heading" used in About sub-blocks. */
+function SubHeading({
+  label,
+  lineColor,
+  icon,
+}: {
+  label: string;
+  lineColor: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "14px",
+        marginBottom: "28px",
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{ width: "36px", height: "3px", background: lineColor }}
+      />
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        {icon}
+        <h4
+          style={{
+            fontSize: "10px",
+            letterSpacing: "3px",
+            textTransform: "uppercase",
+            color: "#548687",
+            fontWeight: 700,
+            margin: 0,
+          }}
+        >
+          {label}
+        </h4>
+      </div>
+    </div>
+  );
+}
+
 function SkillTag({
   name,
   meta,
@@ -421,7 +519,12 @@ function ProjectsGlow({ children }: { children: React.ReactNode }) {
   );
 }
 
+/* ────────────────────────────────────────────────────────────────
+   Page
+   ──────────────────────────────────────────────────────────────── */
+
 export default function Home() {
+  const prefersReducedMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -438,33 +541,65 @@ export default function Home() {
   const projectsTriggered = useRef(false);
   const cursorTrackingRef = useRef(false);
 
+  // Helper: skip entrance offsets when the visitor prefers reduced motion
+  const entrance = useCallback(
+    (initial: Record<string, number | string>) =>
+      prefersReducedMotion ? false : initial,
+    [prefersReducedMotion],
+  );
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
+    onScroll(); // sync immediately in case the page loads mid-scroll
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
   }, []);
+
+  // Mobile menu: lock body scroll + close on Escape while open
+  useEffect(() => {
+    if (!menuOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     const els = document.querySelectorAll(".reveal");
     const io = new IntersectionObserver(
-      (entries) =>
-        entries.forEach(
-          (e) => e.isIntersecting && e.target.classList.add("visible"),
-        ),
+      (entries, obs) =>
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("visible");
+            obs.unobserve(e.target); // one-shot reveal — stop watching once visible
+          }
+        }),
       { threshold: 0.12 },
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, []);
 
+  // Scripted "ghost cursor" demo that opens the first project.
+  // Skipped for reduced-motion users and touch devices (no cursor there).
   useEffect(() => {
+    if (prefersReducedMotion) return;
+    if (window.matchMedia("(pointer: coarse)").matches) return;
+
     const section = document.getElementById("projects");
     if (!section) return;
     const timeouts: ReturnType<typeof setTimeout>[] = [];
@@ -516,7 +651,7 @@ export default function Home() {
       io.disconnect();
       timeouts.forEach(clearTimeout);
     };
-  }, []);
+  }, [prefersReducedMotion]);
 
   useEffect(() => {
     if (!cursorVisible) return;
@@ -530,11 +665,57 @@ export default function Home() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [cursorVisible]);
 
+  const toggleProject = (i: number) =>
+    setActiveProject((prev) => (prev === i ? null : i));
+
   return (
     <main style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}>
+      {/* Page-level polish: smooth anchor scrolling with room for the fixed
+          nav, visible keyboard focus, and a reduced-motion escape hatch. */}
+      <style>{`
+        html { scroll-behavior: smooth; }
+        section[id] { scroll-margin-top: 84px; }
+        .skip-link {
+          position: fixed;
+          top: -100px;
+          left: 16px;
+          z-index: 1001;
+          padding: 10px 18px;
+          background: #b0413e;
+          color: #ffffc7;
+          font-size: 11px;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          font-weight: 700;
+          text-decoration: none;
+          transition: top 0.2s ease;
+        }
+        .skip-link:focus-visible { top: 12px; }
+        a:focus-visible,
+        button:focus-visible,
+        [role="button"]:focus-visible {
+          outline: 2px solid currentColor;
+          outline-offset: 3px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          html { scroll-behavior: auto; }
+          *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+          }
+          .reveal { opacity: 1 !important; transform: none !important; }
+        }
+      `}</style>
+
+      <a href="#about" className="skip-link">
+        Skip to content
+      </a>
+
       {/* ── NAV ── */}
       <motion.nav
-        initial={{ y: -80, opacity: 0 }}
+        aria-label="Primary"
+        initial={entrance({ y: -80, opacity: 0 })}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.65, delay: 0.25, ease: E }}
         style={{
@@ -556,20 +737,24 @@ export default function Home() {
           boxShadow: scrolled ? "0 8px 32px rgba(26,26,26,0.18)" : "none",
         }}
       >
-        <span
+        <a
+          href="#hero"
+          aria-label="Back to top"
           style={{
             fontSize: "26px",
             fontWeight: 900,
             color: "#ffffc7",
             letterSpacing: "-1px",
             fontStyle: "italic",
+            textDecoration: "none",
           }}
         >
           KH
-        </span>
+        </a>
         {isMobile ? (
           <Rippleable
             as="button"
+            type="button"
             rippleColor="rgba(255,255,199,0.22)"
             onClick={() => setMenuOpen((o) => !o)}
             style={{
@@ -583,6 +768,8 @@ export default function Home() {
               alignItems: "center",
             }}
             aria-label="Toggle menu"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
           >
             <span style={{ position: "relative", zIndex: 1, display: "flex" }}>
               {menuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -615,7 +802,9 @@ export default function Home() {
 
       {/* ── MOBILE MENU OVERLAY ── */}
       {isMobile && menuOpen && (
-        <div
+        <nav
+          id="mobile-menu"
+          aria-label="Mobile"
           style={{
             position: "fixed",
             inset: 0,
@@ -647,7 +836,7 @@ export default function Home() {
               {link}
             </a>
           ))}
-        </div>
+        </nav>
       )}
 
       {/* ── HERO ── */}
@@ -664,6 +853,7 @@ export default function Home() {
       >
         {/* Terracotta accent bar */}
         <div
+          aria-hidden="true"
           style={{
             position: "absolute",
             top: 0,
@@ -676,6 +866,7 @@ export default function Home() {
 
         {/* Decorative vertical rails */}
         <div
+          aria-hidden="true"
           style={{
             position: "absolute",
             top: 0,
@@ -686,6 +877,7 @@ export default function Home() {
           }}
         />
         <div
+          aria-hidden="true"
           style={{
             position: "absolute",
             top: 0,
@@ -698,7 +890,8 @@ export default function Home() {
 
         {/* Giant KH lettermark — slides from center, fades to ghost */}
         <motion.div
-          initial={{ x: "-30vw", opacity: 1 }}
+          aria-hidden="true"
+          initial={entrance({ x: "-30vw", opacity: 1 })}
           animate={{ x: 0, opacity: 0.055 }}
           transition={{ duration: 1.1, delay: 0.2, ease: E }}
           style={{
@@ -729,35 +922,19 @@ export default function Home() {
         >
           {/* Eyebrow */}
           <motion.div
-            initial={{ x: -64, opacity: 0 }}
+            initial={entrance({ x: -64, opacity: 0 })}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.65, delay: 0.4, ease: E }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "14px",
-              marginBottom: "36px",
-            }}
           >
-            <div
-              style={{ width: "44px", height: "1.5px", background: "#b0413e" }}
+            <Eyebrow
+              label="Portfolio · 2026"
+              style={{ marginBottom: "36px" }}
             />
-            <span
-              style={{
-                color: "#b0413e",
-                fontSize: "11px",
-                letterSpacing: "3px",
-                textTransform: "uppercase",
-                fontWeight: 700,
-              }}
-            >
-              Portfolio · 2026
-            </span>
           </motion.div>
 
           {/* Display headline */}
           <motion.h1
-            initial={{ x: -90, opacity: 0 }}
+            initial={entrance({ x: -90, opacity: 0 })}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.7, delay: 0.55, ease: E }}
             style={{
@@ -777,7 +954,7 @@ export default function Home() {
 
           {/* Tagline */}
           <motion.p
-            initial={{ x: -70, opacity: 0 }}
+            initial={entrance({ x: -70, opacity: 0 })}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.65, delay: 0.7, ease: E }}
             style={{
@@ -795,7 +972,7 @@ export default function Home() {
 
           {/* CTAs */}
           <motion.div
-            initial={{ x: -50, opacity: 0 }}
+            initial={entrance({ x: -50, opacity: 0 })}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.85, ease: E }}
             style={{
@@ -833,6 +1010,7 @@ export default function Home() {
                 View Work{" "}
                 <ArrowRight
                   size={14}
+                  aria-hidden="true"
                   style={{
                     display: "inline",
                     verticalAlign: "middle",
@@ -872,7 +1050,8 @@ export default function Home() {
 
         {/* Scroll indicator */}
         <motion.div
-          initial={{ opacity: 0 }}
+          aria-hidden="true"
+          initial={entrance({ opacity: 0 })}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 1.1 }}
           style={{
@@ -915,33 +1094,7 @@ export default function Home() {
         <div style={{ maxWidth: "1140px", margin: "0 auto" }}>
           {/* Header */}
           <div className="reveal" style={{ marginBottom: "80px" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "14px",
-                marginBottom: "20px",
-              }}
-            >
-              <div
-                style={{
-                  width: "44px",
-                  height: "1.5px",
-                  background: "#b0413e",
-                }}
-              />
-              <span
-                style={{
-                  color: "#b0413e",
-                  fontSize: "11px",
-                  letterSpacing: "3px",
-                  textTransform: "uppercase",
-                  fontWeight: 700,
-                }}
-              >
-                Background
-              </span>
-            </div>
+            <Eyebrow label="Background" />
             <h2
               style={{
                 fontSize: "clamp(38px, 5.5vw, 72px)",
@@ -957,7 +1110,7 @@ export default function Home() {
           {/* Timeline */}
           {EDUCATION.map((item, i) => (
             <div
-              key={i}
+              key={item.institution}
               className="reveal"
               style={{ transitionDelay: `${i * 0.15}s` }}
             >
@@ -1027,6 +1180,7 @@ export default function Home() {
                     }}
                   >
                     <div
+                      aria-hidden="true"
                       style={{
                         width: "5px",
                         height: "5px",
@@ -1074,6 +1228,7 @@ export default function Home() {
 
                   {/* Timeline spine */}
                   <div
+                    aria-hidden="true"
                     style={{
                       display: "flex",
                       flexDirection: "column",
@@ -1149,6 +1304,7 @@ export default function Home() {
                       }}
                     >
                       <div
+                        aria-hidden="true"
                         style={{
                           width: "5px",
                           height: "5px",
@@ -1187,34 +1343,7 @@ export default function Home() {
           >
             {/* ── Row 1: Interests (full width, Gym + Gaming side by side) ── */}
             <div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "14px",
-                  marginBottom: "32px",
-                }}
-              >
-                <div
-                  style={{
-                    width: "36px",
-                    height: "3px",
-                    background: "#548687",
-                  }}
-                />
-                <h4
-                  style={{
-                    fontSize: "10px",
-                    letterSpacing: "3px",
-                    textTransform: "uppercase",
-                    color: "#548687",
-                    fontWeight: 700,
-                    margin: 0,
-                  }}
-                >
-                  Interests
-                </h4>
-              </div>
+              <SubHeading label="Interests" lineColor="#548687" />
               <div
                 style={{
                   display: "grid",
@@ -1244,7 +1373,7 @@ export default function Home() {
                       marginBottom: "12px",
                     }}
                   >
-                    <Dumbbell size={16} color="#b0413e" />
+                    <Dumbbell size={16} color="#b0413e" aria-hidden="true" />
                     <span
                       style={{
                         fontSize: "15px",
@@ -1296,7 +1425,7 @@ export default function Home() {
                       marginBottom: "12px",
                     }}
                   >
-                    <Gamepad2 size={16} color="#548687" />
+                    <Gamepad2 size={16} color="#548687" aria-hidden="true" />
                     <span
                       style={{
                         fontSize: "15px",
@@ -1341,43 +1470,11 @@ export default function Home() {
             >
               {/* Languages */}
               <div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "14px",
-                    marginBottom: "28px",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "36px",
-                      height: "3px",
-                      background: "#b0413e",
-                    }}
-                  />
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    <Globe size={13} color="#548687" />
-                    <h4
-                      style={{
-                        fontSize: "10px",
-                        letterSpacing: "3px",
-                        textTransform: "uppercase",
-                        color: "#548687",
-                        fontWeight: 700,
-                        margin: 0,
-                      }}
-                    >
-                      Languages
-                    </h4>
-                  </div>
-                </div>
+                <SubHeading
+                  label="Languages"
+                  lineColor="#b0413e"
+                  icon={<Globe size={13} color="#548687" aria-hidden="true" />}
+                />
                 <div
                   style={{
                     display: "flex",
@@ -1430,6 +1527,7 @@ export default function Home() {
                         </span>
                       </div>
                       <div
+                        aria-hidden="true"
                         style={{
                           height: "2px",
                           background: "rgba(255,255,199,0.08)",
@@ -1454,43 +1552,11 @@ export default function Home() {
 
               {/* Location */}
               <div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "14px",
-                    marginBottom: "28px",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "36px",
-                      height: "3px",
-                      background: "#548687",
-                    }}
-                  />
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    <MapPin size={13} color="#548687" />
-                    <h4
-                      style={{
-                        fontSize: "10px",
-                        letterSpacing: "3px",
-                        textTransform: "uppercase",
-                        color: "#548687",
-                        fontWeight: 700,
-                        margin: 0,
-                      }}
-                    >
-                      Location
-                    </h4>
-                  </div>
-                </div>
+                <SubHeading
+                  label="Location"
+                  lineColor="#548687"
+                  icon={<MapPin size={13} color="#548687" aria-hidden="true" />}
+                />
                 <span
                   style={{
                     display: "block",
@@ -1533,33 +1599,7 @@ export default function Home() {
       >
         <div style={{ maxWidth: "1140px", margin: "0 auto" }}>
           <div className="reveal" style={{ marginBottom: "72px" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "14px",
-                marginBottom: "20px",
-              }}
-            >
-              <div
-                style={{
-                  width: "44px",
-                  height: "1.5px",
-                  background: "#b0413e",
-                }}
-              />
-              <span
-                style={{
-                  color: "#b0413e",
-                  fontSize: "11px",
-                  letterSpacing: "3px",
-                  textTransform: "uppercase",
-                  fontWeight: 700,
-                }}
-              >
-                Expertise
-              </span>
-            </div>
+            <Eyebrow label="Expertise" />
             <h2
               style={{
                 fontSize: "clamp(38px, 5.5vw, 72px)",
@@ -1594,6 +1634,7 @@ export default function Home() {
                   style={{ display: "flex", alignItems: "center", gap: "7px" }}
                 >
                   <div
+                    aria-hidden="true"
                     style={{
                       width: "18px",
                       height: "14px",
@@ -1631,6 +1672,7 @@ export default function Home() {
             {Object.entries(SKILLS).map(([category, items], i) => (
               <SkillCard key={category} delay={i * 0.15}>
                 <div
+                  aria-hidden="true"
                   style={{
                     width: "36px",
                     height: "3px",
@@ -1671,33 +1713,7 @@ export default function Home() {
       >
         <div style={{ maxWidth: "1140px", margin: "0 auto" }}>
           <div className="reveal" style={{ marginBottom: "72px" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "14px",
-                marginBottom: "20px",
-              }}
-            >
-              <div
-                style={{
-                  width: "44px",
-                  height: "1.5px",
-                  background: "#b0413e",
-                }}
-              />
-              <span
-                style={{
-                  color: "#b0413e",
-                  fontSize: "11px",
-                  letterSpacing: "3px",
-                  textTransform: "uppercase",
-                  fontWeight: 700,
-                }}
-              >
-                Selected Work
-              </span>
-            </div>
+            <Eyebrow label="Selected Work" />
             <h2
               style={{
                 fontSize: "clamp(38px, 5.5vw, 72px)",
@@ -1712,189 +1728,207 @@ export default function Home() {
           </div>
 
           <ProjectsGlow>
-            {PROJECTS.map((project, i) => (
-              <div
-                key={project.num}
-                className="reveal project-card"
-                style={{ transitionDelay: `${i * 0.1}s`, cursor: "pointer" }}
-              >
+            {PROJECTS.map((project, i) => {
+              const isActive = activeProject === i;
+              const detailsId = `project-details-${project.num}`;
+              return (
                 <div
-                  style={{
-                    borderTop: "1px solid rgba(255,255,199,0.08)",
-                    borderLeft:
-                      activeProject === i
-                        ? `2px solid ${project.accent}`
-                        : "2px solid transparent",
-                    padding: "44px 0",
-                    paddingLeft: activeProject === i ? "24px" : "0",
-                    transition:
-                      "padding-left 0.3s ease, border-left-color 0.3s ease",
-                  }}
-                  onClick={() =>
-                    setActiveProject(activeProject === i ? null : i)
-                  }
+                  key={project.num}
+                  className="reveal project-card"
+                  style={{ transitionDelay: `${i * 0.1}s` }}
                 >
                   <div
-                    ref={i === 0 ? firstProjectRef : undefined}
-                    className="project-row"
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: isMobile
-                        ? "48px 1fr 40px"
-                        : "clamp(64px, 9vw, 108px) 1fr 50px",
-                      gap: isMobile ? "16px" : "28px",
-                      alignItems: "center",
+                      borderTop: "1px solid rgba(255,255,199,0.08)",
+                      borderLeft: isActive
+                        ? `2px solid ${project.accent}`
+                        : "2px solid transparent",
+                      padding: "44px 0",
+                      paddingLeft: isActive ? "24px" : "0",
+                      transition:
+                        "padding-left 0.3s ease, border-left-color 0.3s ease",
                     }}
                   >
-                    <span
-                      className="project-num"
+                    <div
+                      ref={i === 0 ? firstProjectRef : undefined}
+                      className="project-row"
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={isActive}
+                      aria-controls={detailsId}
+                      onClick={() => toggleProject(i)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleProject(i);
+                        }
+                      }}
                       style={{
-                        fontSize: isMobile ? "32px" : "clamp(40px, 5vw, 56px)",
-                        fontWeight: 700,
-                        fontStyle: "italic",
-                        color: project.accent,
-                        opacity: activeProject === i ? 1 : 0.55,
-                        lineHeight: 1,
+                        display: "grid",
+                        gridTemplateColumns: isMobile
+                          ? "48px 1fr 40px"
+                          : "clamp(64px, 9vw, 108px) 1fr 50px",
+                        gap: isMobile ? "16px" : "28px",
+                        alignItems: "center",
+                        cursor: "pointer",
                       }}
                     >
-                      {project.num}
-                    </span>
-
-                    <div>
                       <span
+                        className="project-num"
+                        aria-hidden="true"
                         style={{
-                          color: "rgba(255,255,199,0.4)",
-                          fontSize: "10px",
-                          letterSpacing: "2.5px",
-                          textTransform: "uppercase",
-                          display: "block",
-                          marginBottom: "8px",
-                        }}
-                      >
-                        {project.subtitle}
-                      </span>
-                      <h3
-                        style={{
-                          fontSize: "clamp(20px, 3vw, 34px)",
+                          fontSize: isMobile
+                            ? "32px"
+                            : "clamp(40px, 5vw, 56px)",
                           fontWeight: 700,
-                          color: "#ffffc7",
-                          lineHeight: 1.2,
-                          marginBottom: "14px",
+                          fontStyle: "italic",
+                          color: project.accent,
+                          opacity: isActive ? 1 : 0.55,
+                          lineHeight: 1,
                         }}
                       >
-                        {project.title}
-                      </h3>
+                        {project.num}
+                      </span>
+
+                      <div>
+                        <span
+                          style={{
+                            color: "rgba(255,255,199,0.4)",
+                            fontSize: "10px",
+                            letterSpacing: "2.5px",
+                            textTransform: "uppercase",
+                            display: "block",
+                            marginBottom: "8px",
+                          }}
+                        >
+                          {project.subtitle}
+                        </span>
+                        <h3
+                          style={{
+                            fontSize: "clamp(20px, 3vw, 34px)",
+                            fontWeight: 700,
+                            color: "#ffffc7",
+                            lineHeight: 1.2,
+                            marginBottom: "14px",
+                          }}
+                        >
+                          {project.title}
+                        </h3>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "8px",
+                          }}
+                        >
+                          {project.tech.map((t) => (
+                            <span
+                              key={t}
+                              className="ui-text"
+                              style={{
+                                padding: "3px 10px",
+                                fontSize: "10px",
+                                letterSpacing: "1px",
+                                textTransform: "uppercase",
+                                border: `1px solid ${project.accent}55`,
+                                background: `${project.accent}0d`,
+                                color: project.accent,
+                              }}
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
                       <div
+                        className="project-plus"
+                        aria-hidden="true"
                         style={{
+                          width: "42px",
+                          height: "42px",
+                          flexShrink: 0,
+                          border: `1px solid rgba(255,255,199,${isActive ? "0" : "0.15"})`,
                           display: "flex",
-                          flexWrap: "wrap",
-                          gap: "8px",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#ffffc7",
+                          transform: isActive ? "rotate(45deg)" : "",
+                          background: isActive ? "#b0413e" : "transparent",
                         }}
                       >
-                        {project.tech.map((t) => (
-                          <span
-                            key={t}
-                            className="ui-text"
+                        <Plus size={18} strokeWidth={1.5} />
+                      </div>
+                    </div>
+
+                    {isActive && (
+                      <div
+                        id={detailsId}
+                        role="region"
+                        aria-label={project.title}
+                        style={{
+                          marginTop: "32px",
+                          paddingTop: "32px",
+                          borderTop: "1px solid rgba(255,255,199,0.06)",
+                          display: "grid",
+                          gridTemplateColumns:
+                            "repeat(auto-fit, minmax(260px, 1fr))",
+                          gap: "48px",
+                          animation: "expandDown 0.35s ease both",
+                        }}
+                      >
+                        <div>
+                          <div
                             style={{
-                              padding: "3px 10px",
-                              fontSize: "10px",
-                              letterSpacing: "1px",
+                              fontSize: "12px",
+                              letterSpacing: "2.5px",
                               textTransform: "uppercase",
-                              border: `1px solid ${project.accent}55`,
-                              background: `${project.accent}0d`,
-                              color: project.accent,
+                              color: "#548687",
+                              marginBottom: "14px",
+                              fontWeight: 700,
                             }}
                           >
-                            {t}
-                          </span>
-                        ))}
+                            About this project
+                          </div>
+                          <p
+                            style={{
+                              color: "rgba(255,255,199,0.65)",
+                              fontSize: "17px",
+                              lineHeight: 1.85,
+                            }}
+                          >
+                            {project.description}
+                          </p>
+                        </div>
+                        <div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              letterSpacing: "2.5px",
+                              textTransform: "uppercase",
+                              color: "#b0413e",
+                              marginBottom: "14px",
+                              fontWeight: 700,
+                            }}
+                          >
+                            What I learned
+                          </div>
+                          <p
+                            style={{
+                              color: "rgba(255,255,199,0.65)",
+                              fontSize: "17px",
+                              lineHeight: 1.85,
+                            }}
+                          >
+                            {project.learnings}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-
-                    <div
-                      className="project-plus"
-                      style={{
-                        width: "42px",
-                        height: "42px",
-                        flexShrink: 0,
-                        border: `1px solid rgba(255,255,199,${activeProject === i ? "0" : "0.15"})`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#ffffc7",
-                        transform: activeProject === i ? "rotate(45deg)" : "",
-                        background:
-                          activeProject === i ? "#b0413e" : "transparent",
-                      }}
-                    >
-                      <Plus size={18} strokeWidth={1.5} />
-                    </div>
+                    )}
                   </div>
-
-                  {activeProject === i && (
-                    <div
-                      style={{
-                        marginTop: "32px",
-                        paddingTop: "32px",
-                        borderTop: "1px solid rgba(255,255,199,0.06)",
-                        display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fit, minmax(260px, 1fr))",
-                        gap: "48px",
-                        animation: "expandDown 0.35s ease both",
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            letterSpacing: "2.5px",
-                            textTransform: "uppercase",
-                            color: "#548687",
-                            marginBottom: "14px",
-                            fontWeight: 700,
-                          }}
-                        >
-                          About this project
-                        </div>
-                        <p
-                          style={{
-                            color: "rgba(255,255,199,0.65)",
-                            fontSize: "17px",
-                            lineHeight: 1.85,
-                          }}
-                        >
-                          {project.description}
-                        </p>
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            letterSpacing: "2.5px",
-                            textTransform: "uppercase",
-                            color: "#b0413e",
-                            marginBottom: "14px",
-                            fontWeight: 700,
-                          }}
-                        >
-                          What I learned
-                        </div>
-                        <p
-                          style={{
-                            color: "rgba(255,255,199,0.65)",
-                            fontSize: "17px",
-                            lineHeight: 1.85,
-                          }}
-                        >
-                          {project.learnings}
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </ProjectsGlow>
 
           <div style={{ borderTop: "1px solid rgba(255,255,199,0.08)" }} />
@@ -1912,6 +1946,7 @@ export default function Home() {
         }}
       >
         <div
+          aria-hidden="true"
           style={{
             position: "absolute",
             right: "-60px",
@@ -1938,33 +1973,7 @@ export default function Home() {
           }}
         >
           <div className="reveal" style={{ maxWidth: "560px" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "14px",
-                marginBottom: "20px",
-              }}
-            >
-              <div
-                style={{
-                  width: "44px",
-                  height: "1.5px",
-                  background: "rgba(255,255,199,0.7)",
-                }}
-              />
-              <span
-                style={{
-                  color: "rgba(255,255,199,0.7)",
-                  fontSize: "11px",
-                  letterSpacing: "3px",
-                  textTransform: "uppercase",
-                  fontWeight: 700,
-                }}
-              >
-                Contact
-              </span>
-            </div>
+            <Eyebrow label="Contact" color="rgba(255,255,199,0.7)" />
             <h2
               style={{
                 fontSize: "clamp(38px, 5.5vw, 72px)",
@@ -1999,6 +2008,7 @@ export default function Home() {
               target="_blank"
               rel="noopener noreferrer"
               rippleColor="rgba(255,255,199,0.2)"
+              aria-label="LinkedIn (opens in a new tab)"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -2080,8 +2090,10 @@ export default function Home() {
         </span>
       </footer>
 
+      {/* ── GHOST CURSOR (demo) ── */}
       {cursorVisible && (
         <div
+          aria-hidden="true"
           style={{
             position: "fixed",
             left: cursorX,
@@ -2129,6 +2141,7 @@ export default function Home() {
       )}
       {projectRipple && (
         <div
+          aria-hidden="true"
           style={{
             position: "fixed",
             left: cursorX - 20,
