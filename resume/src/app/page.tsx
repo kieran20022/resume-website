@@ -20,31 +20,165 @@ const E = [0.25, 0.46, 0.45, 0.94] as const;
 
 const NAV_LINKS = ["About", "Skills", "Projects", "Contact"];
 
+type RippleState = {
+  x: number;
+  y: number;
+  size: number;
+  leaving: boolean;
+} | null;
+
+function useRipple() {
+  const [ripple, setRipple] = useState<RippleState>(null);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const maxDist = Math.hypot(
+      Math.max(x, rect.width - x),
+      Math.max(y, rect.height - y),
+    );
+    setRipple({ x, y, size: maxDist * 2, leaving: false });
+  };
+
+  const onMouseLeave = () => {
+    setRipple((prev) => (prev ? { ...prev, leaving: true } : null));
+    leaveTimer.current = setTimeout(() => setRipple(null), 380);
+  };
+
+  return {
+    ripple,
+    onMouseEnter,
+    onMouseLeave,
+    hovered: ripple !== null && !ripple.leaving,
+  };
+}
+
+function RippleFill({ ripple, color }: { ripple: RippleState; color: string }) {
+  if (!ripple) return null;
+  return (
+    <span
+      style={{
+        position: "absolute",
+        left: ripple.x - ripple.size / 2,
+        top: ripple.y - ripple.size / 2,
+        width: `${ripple.size}px`,
+        height: `${ripple.size}px`,
+        borderRadius: "50%",
+        background: color,
+        pointerEvents: "none",
+        zIndex: 0,
+        animation: ripple.leaving
+          ? "skillRippleOut 0.35s ease forwards"
+          : "skillRippleIn 0.42s cubic-bezier(0.4, 0, 0.2, 1) forwards",
+      }}
+    />
+  );
+}
+
+function Rippleable<T extends React.ElementType>({
+  as,
+  rippleColor,
+  style,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+  ...rest
+}: {
+  as: T;
+  rippleColor: string;
+  children: React.ReactNode;
+} & Omit<
+  React.ComponentPropsWithoutRef<T>,
+  "as" | "rippleColor" | "children"
+>) {
+  const ripple = useRipple();
+  const Component = as as React.ElementType;
+  return (
+    <Component
+      {...rest}
+      style={{ position: "relative", overflow: "hidden", ...style }}
+      onMouseEnter={(e: React.MouseEvent<HTMLElement>) => {
+        ripple.onMouseEnter(e);
+        (onMouseEnter as React.MouseEventHandler<HTMLElement> | undefined)?.(
+          e,
+        );
+      }}
+      onMouseLeave={(e: React.MouseEvent<HTMLElement>) => {
+        ripple.onMouseLeave();
+        (onMouseLeave as React.MouseEventHandler<HTMLElement> | undefined)?.(
+          e,
+        );
+      }}
+    >
+      <RippleFill ripple={ripple.ripple} color={rippleColor} />
+      {children}
+    </Component>
+  );
+}
+
 type SkillLevel = "once" | "familiar" | "comfortable";
+type SkillShape = "circle" | "triangle" | "square";
 
 const LEVEL_META: Record<
   SkillLevel,
-  { label: string; color: string; bg: string; border: string }
+  {
+    label: string;
+    color: string;
+    bg: string;
+    border: string;
+    shape: SkillShape;
+  }
 > = {
   once: {
     label: "Used once or twice",
     color: "rgba(80,80,80,0.7)",
     bg: "rgba(120,120,120,0.14)",
     border: "rgba(120,120,120,0.35)",
+    shape: "circle",
   },
   familiar: {
     label: "Familiar with it",
     color: "#548687",
     bg: "rgba(84,134,135,0.2)",
     border: "rgba(84,134,135,0.6)",
+    shape: "triangle",
   },
   comfortable: {
     label: "Comfortable with it",
     color: "#b0413e",
     bg: "rgba(176,65,62,0.18)",
     border: "rgba(176,65,62,0.6)",
+    shape: "square",
   },
 };
+
+function ShapeIcon({
+  shape,
+  size,
+  color,
+}: {
+  shape: SkillShape;
+  size: number;
+  color: string;
+}) {
+  return (
+    <span
+      style={{
+        width: size,
+        height: size,
+        background: color,
+        display: "inline-flex",
+        flexShrink: 0,
+        borderRadius: shape === "circle" ? "50%" : 0,
+        clipPath:
+          shape === "triangle" ? "polygon(50% 0%, 0% 100%, 100% 100%)" : "none",
+      }}
+    />
+  );
+}
 
 const SKILLS: Record<string, { name: string; level: SkillLevel }[]> = {
   Languages: [
@@ -133,7 +267,7 @@ const PROJECTS = [
   {
     num: "06",
     title: "Delirium Prediction Capstone Project",
-    subtitle: "Internal Minor Project — Machine Learning [In Progress]",
+    subtitle: "Internal Minor Project — Machine Learning",
     tech: [
       "Python",
       "Pandas",
@@ -143,10 +277,21 @@ const PROJECTS = [
       "LSTM",
     ],
     description:
-      "A capstone project focusing on predicting delirium in hospitalized patients using machine learning techniques. The project involved data preprocessing, feature selection, and model training with various algorithms. This project also includes the writing of a scientific paper detailing the methodology and results.",
+      "A capstone project focusing on predicting delirium in hospitalized patients in the MIMIC-IV Dataset, using machine learning techniques. The project involved data preprocessing, feature selection, and model training with Random Forest, XGBoost, and LSTM and a final Ensemble model averaging the outputs of the individual models. This project also included the writing of a scientific paper detailing the methodology and results.",
     learnings:
-      "A step further into machine learning. Working with bigger datasets, more complex preprocessing, and more advanced models.",
+      "A step further into machine learning. Detailing every step of the process. Working with bigger datasets, more complex preprocessing, and more advanced models.",
     accent: "#548687",
+  },
+  {
+    num: "07",
+    title: "Invoice Application — BromFix",
+    subtitle: "Project for a Local Business ran by a Friend — [AI Used]",
+    tech: ["Flutter", "Firebase", "Google Firestore"],
+    description:
+      "A mobile application for creating and managing invoices for a friend's Moped Repair business. The app allows the user to create invoices, add items, and send them to customers via email, WhatsApp, etc. The app was mainly built to streamline the previously fully manual process.",
+    learnings:
+      "Building a full-stack mobile application, directly working with the client, and learning the importance of user experience and feedback in a real-world application.",
+    accent: "#b0413e",
   },
 ];
 
@@ -179,6 +324,102 @@ const EDUCATION = [
     accent: "#548687",
   },
 ];
+
+function SkillTag({
+  name,
+  meta,
+}: {
+  name: string;
+  meta: (typeof LEVEL_META)[SkillLevel];
+}) {
+  const { ripple, onMouseEnter, onMouseLeave, hovered } = useRipple();
+
+  return (
+    <span
+      className="ui-text"
+      style={{
+        padding: "7px 14px",
+        fontSize: "13px",
+        fontWeight: 500,
+        border: `1px solid ${meta.border}`,
+        background: meta.bg,
+        color: hovered ? "#ffffc7" : "#1a1a1a",
+        transition:
+          "color 0.22s 0.08s ease, transform 0.22s ease, box-shadow 0.22s ease",
+        transform: hovered ? "translateY(-2px)" : "translateY(0)",
+        boxShadow: hovered ? "0 6px 16px rgba(26,26,26,0.12)" : "none",
+        cursor: "default",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "8px",
+        position: "relative",
+        overflow: "hidden",
+      }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <RippleFill ripple={ripple} color={meta.color} />
+      <span
+        style={{
+          opacity: 0.55,
+          position: "relative",
+          zIndex: 1,
+          display: "inline-flex",
+        }}
+      >
+        <ShapeIcon shape={meta.shape} size={8} color="currentColor" />
+      </span>
+      <span style={{ position: "relative", zIndex: 1 }}>{name}</span>
+    </span>
+  );
+}
+
+function SkillCard({
+  delay,
+  children,
+}: {
+  delay: number;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    el.style.setProperty("--mx", `${e.clientX - rect.left}px`);
+    el.style.setProperty("--my", `${e.clientY - rect.top}px`);
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="reveal skill-card"
+      style={{ transitionDelay: `${delay}s` }}
+      onMouseMove={handleMouseMove}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ProjectsGlow({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    el.style.setProperty("--mx", `${e.clientX - rect.left}px`);
+    el.style.setProperty("--my", `${e.clientY - rect.top}px`);
+  };
+
+  return (
+    <div ref={ref} className="project-glow" onMouseMove={handleMouseMove}>
+      {children}
+    </div>
+  );
+}
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
@@ -305,13 +546,14 @@ export default function Home() {
           padding: scrolled
             ? `14px ${isMobile ? "20px" : "56px"}`
             : `28px ${isMobile ? "20px" : "56px"}`,
-          background: scrolled ? "rgba(84,134,135,0.96)" : "transparent",
-          backdropFilter: scrolled ? "blur(16px)" : "none",
+          background: scrolled ? "rgba(61,100,101,0.20)" : "transparent",
+          backdropFilter: scrolled ? "blur(18px)" : "none",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           transition: "padding 0.35s ease, background 0.35s ease",
           borderBottom: scrolled ? "1px solid rgba(255,255,199,0.12)" : "none",
+          boxShadow: scrolled ? "0 8px 32px rgba(26,26,26,0.18)" : "none",
         }}
       >
         <span
@@ -326,7 +568,9 @@ export default function Home() {
           KH
         </span>
         {isMobile ? (
-          <button
+          <Rippleable
+            as="button"
+            rippleColor="rgba(255,255,199,0.22)"
             onClick={() => setMenuOpen((o) => !o)}
             style={{
               background: "none",
@@ -334,13 +578,16 @@ export default function Home() {
               color: "#ffffc7",
               cursor: "pointer",
               padding: "4px",
+              borderRadius: "6px",
               display: "flex",
               alignItems: "center",
             }}
             aria-label="Toggle menu"
           >
-            {menuOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
+            <span style={{ position: "relative", zIndex: 1, display: "flex" }}>
+              {menuOpen ? <X size={22} /> : <Menu size={22} />}
+            </span>
+          </Rippleable>
         ) : (
           <div style={{ display: "flex", gap: "36px" }}>
             {NAV_LINKS.map((link) => (
@@ -557,8 +804,10 @@ export default function Home() {
               flexWrap: "wrap",
             }}
           >
-            <a
+            <Rippleable
+              as="a"
               href="#projects"
+              rippleColor="rgba(255,255,199,0.2)"
               style={{
                 padding: "15px 34px",
                 background: "#b0413e",
@@ -570,28 +819,32 @@ export default function Home() {
                 fontWeight: 700,
                 transition: "transform 0.2s ease, box-shadow 0.2s ease",
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.currentTarget.style.transform = "translateY(-3px)";
                 e.currentTarget.style.boxShadow =
                   "0 10px 28px rgba(176,65,62,0.45)";
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.currentTarget.style.transform = "";
                 e.currentTarget.style.boxShadow = "";
               }}
             >
-              View Work{" "}
-              <ArrowRight
-                size={14}
-                style={{
-                  display: "inline",
-                  verticalAlign: "middle",
-                  marginLeft: "6px",
-                }}
-              />
-            </a>
-            <a
+              <span style={{ position: "relative", zIndex: 1 }}>
+                View Work{" "}
+                <ArrowRight
+                  size={14}
+                  style={{
+                    display: "inline",
+                    verticalAlign: "middle",
+                    marginLeft: "6px",
+                  }}
+                />
+              </span>
+            </Rippleable>
+            <Rippleable
+              as="a"
               href="#contact"
+              rippleColor="rgba(255,255,199,0.14)"
               style={{
                 padding: "15px 34px",
                 border: "1px solid rgba(255,255,199,0.35)",
@@ -603,17 +856,17 @@ export default function Home() {
                 fontWeight: 700,
                 transition: "border-color 0.2s, background 0.2s",
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.currentTarget.style.borderColor = "#ffffc7";
-                e.currentTarget.style.background = "rgba(255,255,199,0.08)";
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.currentTarget.style.borderColor = "rgba(255,255,199,0.35)";
-                e.currentTarget.style.background = "";
               }}
             >
-              Get in Touch
-            </a>
+              <span style={{ position: "relative", zIndex: 1 }}>
+                Get in Touch
+              </span>
+            </Rippleable>
           </motion.div>
         </div>
 
@@ -970,15 +1223,21 @@ export default function Home() {
                 }}
               >
                 {/* Gym */}
-                <div
+                <Rippleable
+                  as="div"
+                  rippleColor="rgba(176,65,62,0.16)"
                   style={{
                     padding: "24px",
                     border: "1px solid rgba(176,65,62,0.2)",
                     background: "rgba(176,65,62,0.04)",
+                    borderTop: "3px solid rgba(176,65,62,0.5)",
+                    transition: "background 0.3s ease, border-color 0.3s ease",
                   }}
                 >
                   <div
                     style={{
+                      position: "relative",
+                      zIndex: 1,
                       display: "flex",
                       alignItems: "center",
                       gap: "8px",
@@ -1001,6 +1260,8 @@ export default function Home() {
                   <p
                     className="ui-text"
                     style={{
+                      position: "relative",
+                      zIndex: 1,
                       fontSize: "14px",
                       color: "rgba(255,255,199,0.55)",
                       lineHeight: 1.75,
@@ -1012,17 +1273,23 @@ export default function Home() {
                     pushing limits is what hooked me — it&apos;s addicting,
                     honestly.
                   </p>
-                </div>
+                </Rippleable>
                 {/* Gaming */}
-                <div
+                <Rippleable
+                  as="div"
+                  rippleColor="rgba(84,134,135,0.18)"
                   style={{
                     padding: "24px",
                     border: "1px solid rgba(84,134,135,0.2)",
                     background: "rgba(84,134,135,0.04)",
+                    borderTop: "3px solid rgba(84,134,135,0.5)",
+                    transition: "background 0.3s ease, border-color 0.3s ease",
                   }}
                 >
                   <div
                     style={{
+                      position: "relative",
+                      zIndex: 1,
                       display: "flex",
                       alignItems: "center",
                       gap: "8px",
@@ -1045,6 +1312,8 @@ export default function Home() {
                   <p
                     className="ui-text"
                     style={{
+                      position: "relative",
+                      zIndex: 1,
                       fontSize: "14px",
                       color: "rgba(255,255,199,0.55)",
                       lineHeight: 1.75,
@@ -1058,7 +1327,7 @@ export default function Home() {
                     <em>Minecraft</em>, especially technical modpacks with
                     complex automations.
                   </p>
-                </div>
+                </Rippleable>
               </div>
             </div>
 
@@ -1300,7 +1569,10 @@ export default function Home() {
                 marginBottom: "28px",
               }}
             >
-              Skills & <span style={{ color: "#548687" }}>Technologies</span>
+              Skills &{" "}
+              <em style={{ color: "#548687", fontStyle: "italic" }}>
+                Technologies
+              </em>
             </h2>
             {/* Legend */}
             <div
@@ -1315,7 +1587,7 @@ export default function Home() {
                   SkillLevel,
                   (typeof LEVEL_META)[SkillLevel],
                 ][]
-              ).map(([, { label, color, bg, border }]) => (
+              ).map(([, { label, bg, border, shape, color }]) => (
                 <div
                   key={label}
                   className="ui-text"
@@ -1328,8 +1600,13 @@ export default function Home() {
                       background: bg,
                       border: `1px solid ${border}`,
                       flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
-                  />
+                  >
+                    <ShapeIcon shape={shape} size={9} color={color} />
+                  </div>
                   <span
                     style={{
                       fontSize: "11px",
@@ -1352,17 +1629,13 @@ export default function Home() {
             }}
           >
             {Object.entries(SKILLS).map(([category, items], i) => (
-              <div
-                key={category}
-                className="reveal"
-                style={{ transitionDelay: `${i * 0.15}s` }}
-              >
+              <SkillCard key={category} delay={i * 0.15}>
                 <div
                   style={{
                     width: "36px",
                     height: "3px",
                     marginBottom: "18px",
-                    background: i === 1 ? "#b0413e" : "#548687",
+                    background: i % 2 === 1 ? "#b0413e" : "#548687",
                   }}
                 />
                 <h3
@@ -1378,42 +1651,11 @@ export default function Home() {
                   {category}
                 </h3>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                  {items.map(({ name, level }) => {
-                    const meta = LEVEL_META[level];
-                    return (
-                      <span
-                        key={name}
-                        className="ui-text"
-                        style={{
-                          padding: "7px 14px",
-                          fontSize: "13px",
-                          fontWeight: 500,
-                          border: `1px solid ${meta.border}`,
-                          background: meta.bg,
-                          color: "#1a1a1a",
-                          transition: "all 0.22s ease",
-                          cursor: "default",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = "#548687";
-                          e.currentTarget.style.color = "#ffffc7";
-                          e.currentTarget.style.borderColor = "#548687";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = meta.bg;
-                          e.currentTarget.style.color = "#1a1a1a";
-                          e.currentTarget.style.borderColor = meta.border;
-                        }}
-                      >
-                        {name}
-                      </span>
-                    );
-                  })}
+                  {items.map(({ name, level }) => (
+                    <SkillTag key={name} name={name} meta={LEVEL_META[level]} />
+                  ))}
                 </div>
-              </div>
+              </SkillCard>
             ))}
           </div>
         </div>
@@ -1464,183 +1706,196 @@ export default function Home() {
                 lineHeight: 1.05,
               }}
             >
-              Projects & <span style={{ color: "#548687" }}>Growth</span>
+              Projects &{" "}
+              <em style={{ color: "#548687", fontStyle: "italic" }}>Growth</em>
             </h2>
           </div>
 
-          {PROJECTS.map((project, i) => (
-            <div
-              key={project.num}
-              className="reveal"
-              style={{ transitionDelay: `${i * 0.1}s` }}
-            >
+          <ProjectsGlow>
+            {PROJECTS.map((project, i) => (
               <div
-                style={{
-                  borderTop: "1px solid rgba(255,255,199,0.08)",
-                  padding: "44px 0",
-                }}
+                key={project.num}
+                className="reveal project-card"
+                style={{ transitionDelay: `${i * 0.1}s`, cursor: "pointer" }}
               >
                 <div
-                  ref={i === 0 ? firstProjectRef : undefined}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: isMobile
-                      ? "48px 1fr 40px"
-                      : "clamp(64px, 9vw, 108px) 1fr 50px",
-                    gap: isMobile ? "16px" : "28px",
-                    alignItems: "center",
-                    cursor: "pointer",
-                    paddingLeft: activeProject === i ? "20px" : "0",
-                    transition: "padding-left 0.3s ease",
+                    borderTop: "1px solid rgba(255,255,199,0.08)",
+                    borderLeft:
+                      activeProject === i
+                        ? `2px solid ${project.accent}`
+                        : "2px solid transparent",
+                    padding: "44px 0",
+                    paddingLeft: activeProject === i ? "24px" : "0",
+                    transition:
+                      "padding-left 0.3s ease, border-left-color 0.3s ease",
                   }}
                   onClick={() =>
                     setActiveProject(activeProject === i ? null : i)
                   }
                 >
-                  <span
+                  <div
+                    ref={i === 0 ? firstProjectRef : undefined}
+                    className="project-row"
                     style={{
-                      fontSize: isMobile ? "32px" : "clamp(40px, 5vw, 56px)",
-                      fontWeight: 700,
-                      fontStyle: "italic",
-                      color: project.accent,
-                      opacity: 0.6,
-                      lineHeight: 1,
+                      display: "grid",
+                      gridTemplateColumns: isMobile
+                        ? "48px 1fr 40px"
+                        : "clamp(64px, 9vw, 108px) 1fr 50px",
+                      gap: isMobile ? "16px" : "28px",
+                      alignItems: "center",
                     }}
                   >
-                    {project.num}
-                  </span>
-
-                  <div>
                     <span
+                      className="project-num"
                       style={{
-                        color: "rgba(255,255,199,0.4)",
-                        fontSize: "10px",
-                        letterSpacing: "2.5px",
-                        textTransform: "uppercase",
-                        display: "block",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      {project.subtitle}
-                    </span>
-                    <h3
-                      style={{
-                        fontSize: "clamp(20px, 3vw, 34px)",
+                        fontSize: isMobile ? "32px" : "clamp(40px, 5vw, 56px)",
                         fontWeight: 700,
-                        color: "#ffffc7",
-                        lineHeight: 1.2,
-                        marginBottom: "14px",
+                        fontStyle: "italic",
+                        color: project.accent,
+                        opacity: activeProject === i ? 1 : 0.55,
+                        lineHeight: 1,
                       }}
                     >
-                      {project.title}
-                    </h3>
+                      {project.num}
+                    </span>
+
+                    <div>
+                      <span
+                        style={{
+                          color: "rgba(255,255,199,0.4)",
+                          fontSize: "10px",
+                          letterSpacing: "2.5px",
+                          textTransform: "uppercase",
+                          display: "block",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        {project.subtitle}
+                      </span>
+                      <h3
+                        style={{
+                          fontSize: "clamp(20px, 3vw, 34px)",
+                          fontWeight: 700,
+                          color: "#ffffc7",
+                          lineHeight: 1.2,
+                          marginBottom: "14px",
+                        }}
+                      >
+                        {project.title}
+                      </h3>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "8px",
+                        }}
+                      >
+                        {project.tech.map((t) => (
+                          <span
+                            key={t}
+                            className="ui-text"
+                            style={{
+                              padding: "3px 10px",
+                              fontSize: "10px",
+                              letterSpacing: "1px",
+                              textTransform: "uppercase",
+                              border: `1px solid ${project.accent}55`,
+                              background: `${project.accent}0d`,
+                              color: project.accent,
+                            }}
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
                     <div
-                      style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}
+                      className="project-plus"
+                      style={{
+                        width: "42px",
+                        height: "42px",
+                        flexShrink: 0,
+                        border: `1px solid rgba(255,255,199,${activeProject === i ? "0" : "0.15"})`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#ffffc7",
+                        transform: activeProject === i ? "rotate(45deg)" : "",
+                        background:
+                          activeProject === i ? "#b0413e" : "transparent",
+                      }}
                     >
-                      {project.tech.map((t) => (
-                        <span
-                          key={t}
-                          className="ui-text"
+                      <Plus size={18} strokeWidth={1.5} />
+                    </div>
+                  </div>
+
+                  {activeProject === i && (
+                    <div
+                      style={{
+                        marginTop: "32px",
+                        paddingTop: "32px",
+                        borderTop: "1px solid rgba(255,255,199,0.06)",
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(260px, 1fr))",
+                        gap: "48px",
+                        animation: "expandDown 0.35s ease both",
+                      }}
+                    >
+                      <div>
+                        <div
                           style={{
-                            padding: "3px 10px",
-                            fontSize: "10px",
-                            letterSpacing: "1px",
+                            fontSize: "12px",
+                            letterSpacing: "2.5px",
                             textTransform: "uppercase",
-                            border: `1px solid ${project.accent}55`,
-                            color: project.accent,
+                            color: "#548687",
+                            marginBottom: "14px",
+                            fontWeight: 700,
                           }}
                         >
-                          {t}
-                        </span>
-                      ))}
+                          About this project
+                        </div>
+                        <p
+                          style={{
+                            color: "rgba(255,255,199,0.65)",
+                            fontSize: "17px",
+                            lineHeight: 1.85,
+                          }}
+                        >
+                          {project.description}
+                        </p>
+                      </div>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            letterSpacing: "2.5px",
+                            textTransform: "uppercase",
+                            color: "#b0413e",
+                            marginBottom: "14px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          What I learned
+                        </div>
+                        <p
+                          style={{
+                            color: "rgba(255,255,199,0.65)",
+                            fontSize: "17px",
+                            lineHeight: 1.85,
+                          }}
+                        >
+                          {project.learnings}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-
-                  <div
-                    style={{
-                      width: "42px",
-                      height: "42px",
-                      flexShrink: 0,
-                      border: `1px solid rgba(255,255,199,${activeProject === i ? "0" : "0.15"})`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#ffffc7",
-                      transition:
-                        "transform 0.3s, background 0.3s, border-color 0.3s",
-                      transform: activeProject === i ? "rotate(45deg)" : "",
-                      background:
-                        activeProject === i ? "#b0413e" : "transparent",
-                    }}
-                  >
-                    <Plus size={18} strokeWidth={1.5} />
-                  </div>
+                  )}
                 </div>
-
-                {activeProject === i && (
-                  <div
-                    style={{
-                      marginTop: "32px",
-                      paddingTop: "32px",
-                      borderTop: "1px solid rgba(255,255,199,0.06)",
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(auto-fit, minmax(260px, 1fr))",
-                      gap: "48px",
-                      animation: "expandDown 0.35s ease both",
-                    }}
-                  >
-                    <div>
-                      <div
-                        style={{
-                          fontSize: "10px",
-                          letterSpacing: "2.5px",
-                          textTransform: "uppercase",
-                          color: "#548687",
-                          marginBottom: "14px",
-                          fontWeight: 700,
-                        }}
-                      >
-                        About this project
-                      </div>
-                      <p
-                        style={{
-                          color: "rgba(255,255,199,0.65)",
-                          fontSize: "16px",
-                          lineHeight: 1.85,
-                        }}
-                      >
-                        {project.description}
-                      </p>
-                    </div>
-                    <div>
-                      <div
-                        style={{
-                          fontSize: "10px",
-                          letterSpacing: "2.5px",
-                          textTransform: "uppercase",
-                          color: "#b0413e",
-                          marginBottom: "14px",
-                          fontWeight: 700,
-                        }}
-                      >
-                        What I learned
-                      </div>
-                      <p
-                        style={{
-                          color: "rgba(255,255,199,0.65)",
-                          fontSize: "16px",
-                          lineHeight: 1.85,
-                        }}
-                      >
-                        {project.learnings}
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
-            </div>
-          ))}
+            ))}
+          </ProjectsGlow>
 
           <div style={{ borderTop: "1px solid rgba(255,255,199,0.08)" }} />
         </div>
@@ -1738,10 +1993,12 @@ export default function Home() {
               Open to new opportunities, collaborations, and interesting
               projects. Don&apos;t hesitate to reach out.
             </p>
-            <a
+            <Rippleable
+              as="a"
               href="https://www.linkedin.com/in/kieran-van-der-heijden-320166297/"
               target="_blank"
               rel="noopener noreferrer"
+              rippleColor="rgba(255,255,199,0.2)"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -1756,27 +2013,37 @@ export default function Home() {
                 fontWeight: 700,
                 transition: "transform 0.2s ease, box-shadow 0.2s ease",
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.currentTarget.style.transform = "translateY(-3px)";
                 e.currentTarget.style.boxShadow =
                   "0 12px 32px rgba(176,65,62,0.5)";
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.currentTarget.style.transform = "";
                 e.currentTarget.style.boxShadow = "";
               }}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
+              <span
+                style={{
+                  position: "relative",
+                  zIndex: 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
               >
-                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-              </svg>
-              LinkedIn
-            </a>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                </svg>
+                LinkedIn
+              </span>
+            </Rippleable>
           </div>
         </div>
       </section>

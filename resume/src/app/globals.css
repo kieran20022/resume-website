@@ -72,6 +72,16 @@ body {
   to   { transform: scale(6); opacity: 0; }
 }
 
+@keyframes skillRippleIn {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+@keyframes skillRippleOut {
+  from { transform: scale(1); opacity: 1; }
+  to   { transform: scale(0); opacity: 0; }
+}
+
 .reveal {
   opacity: 0;
   transform: translateY(34px);
@@ -81,4 +91,76 @@ body {
 .reveal.visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+.skill-card {
+  position: relative;
+  isolation: isolate;
+  padding: 16px;
+  border-radius: 10px;
+  background-color: transparent;
+  transition:
+    transform 0.15s ease-in,
+    background-color 0.35s ease-in;
+}
+
+.skill-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 10px;
+  background: radial-gradient(
+    circle 200px at var(--mx, 50%) var(--my, 50%),
+    rgba(84, 134, 135, 0.22),
+    rgba(84, 134, 135, 0.1) 70%
+  );
+  opacity: 0;
+  transition: opacity 0.4s ease-in;
+  pointer-events: none;
+}
+
+.reveal.skill-card:hover {
+  transform: translateY(-10px);
+  background-color: rgba(84, 134, 135, 0.1);
+}
+
+.skill-card:hover::before {
+  opacity: 1;
+}
+
+.project-glow {
+  position: relative;
+  isolation: isolate;
+  padding: 32px;
+  margin: -32px;
+  border-radius: 28px;
+}
+
+.project-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 28px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  background: radial-gradient(
+    circle 320px at var(--mx, 50%) var(--my, 50%),
+    rgba(84, 134, 135, 0.16),
+    transparent 70%
+  );
+}
+
+.project-glow:hover::before {
+  opacity: 1;
+}
+
+.project-card {
+  transition: transform 0.15s ease-in;
+}
+
+.reveal.project-card:hover {
+  transform: translateX(10px);
 }
