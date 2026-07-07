@@ -101,9 +101,12 @@ body {
   background-color: transparent;
   transition:
     transform 0.15s ease-in,
-    background-color 0.35s ease-in;
+    background-color 0.35s ease-in,
+    box-shadow 0.35s ease-in;
 }
 
+/* Hover lights the whole card: a full-card teal wash with a brighter
+   hotspot tracking the cursor (--mx/--my set by the component). */
 .skill-card::before {
   content: "";
   position: absolute;
@@ -111,9 +114,9 @@ body {
   z-index: -1;
   border-radius: 10px;
   background: radial-gradient(
-    circle 200px at var(--mx, 50%) var(--my, 50%),
-    rgba(84, 134, 135, 0.22),
-    rgba(84, 134, 135, 0.1) 70%
+    circle 420px at var(--mx, 50%) var(--my, 50%),
+    rgba(84, 134, 135, 0.32),
+    rgba(84, 134, 135, 0.16) 100%
   );
   opacity: 0;
   transition: opacity 0.4s ease-in;
@@ -122,7 +125,8 @@ body {
 
 .reveal.skill-card:hover {
   transform: translateY(-10px);
-  background-color: rgba(84, 134, 135, 0.1);
+  background-color: rgba(84, 134, 135, 0.14);
+  box-shadow: 0 14px 40px rgba(84, 134, 135, 0.28);
 }
 
 .skill-card:hover::before {

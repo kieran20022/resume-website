@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   ArrowRight,
   ChevronDown,
   Dumbbell,
   Gamepad2,
   Globe,
+  Lock,
   MapPin,
   Menu,
   Plus,
@@ -232,6 +233,7 @@ const PROJECTS = [
     learnings:
       "Python fundamentals: control flow, data structures and functions. The bedrock everything else was built on.",
     accent: "#b0413e",
+    github: "https://github.com/The0Danktor/Trench-warfare",
   },
   {
     num: "02",
@@ -243,6 +245,7 @@ const PROJECTS = [
     learnings:
       "React and ASP.Net fundamentals. Learned the hard way why architecture matters before writing a single line.",
     accent: "#548687",
+    github: "https://github.com/nowaaaaaa/Project-C",
   },
   {
     num: "03",
@@ -254,6 +257,7 @@ const PROJECTS = [
     learnings:
       "Advanced React & Flask patterns, Docker architecture, SBOM generation tools (Syft, Grype), and practical security analysis workflows.",
     accent: "#b0413e",
+    github: "https://github.com/nowaaaaaa/Project-Dae",
   },
   {
     num: "04",
@@ -265,6 +269,7 @@ const PROJECTS = [
     learnings:
       "OAuth2 auth flows, multi-tenant database design, GCP deployment (Cloud Run, Cloud SQL), and what it actually means to ship production software.",
     accent: "#548687",
+    github: "",
   },
   {
     num: "05",
@@ -272,10 +277,11 @@ const PROJECTS = [
     subtitle: "Minor Project — Data Science",
     tech: ["Python", "Pandas", "Matplotlib", "Scikit-learn"],
     description:
-      "A data science project analyzing a dataset of New York City taxi trips to predict trip durations based on various features. The project involved data cleaning, exploratory analysis, feature engineering, and building models with linear regression, XGBoost and Prophet.",
+      "A data science project analyzing a dataset of New York City taxi trips to predict trip durations based on various features. The project involved data cleaning, exploratory analysis, feature engineering, and building models with linear regression, XGBoost and Prophet. The project also included the writing of a paper detailing the methodology and results.",
     learnings:
       "The first step into Data Science — data cleaning, feature engineering, and the basics of predictive modeling. A great reminder that raw data is messy and insights come from the work put into understanding it.",
     accent: "#b0413e",
+    github: "https://github.com/9iiota/CMI-MINBOD-2526",
   },
   {
     num: "06",
@@ -294,6 +300,7 @@ const PROJECTS = [
     learnings:
       "A step further into machine learning. Detailing every step of the process. Working with bigger datasets, more complex preprocessing, and more advanced models.",
     accent: "#548687",
+    github: "https://github.com/Hadyalt/AI_In_Healthcare_Capstone_Project",
   },
   {
     num: "07",
@@ -305,6 +312,7 @@ const PROJECTS = [
     learnings:
       "Building a full-stack mobile application, directly working with the client, and learning the importance of user experience and feedback in a real-world application.",
     accent: "#b0413e",
+    github: "https://github.com/kieran20022/invoice-app",
   },
 ];
 
@@ -520,26 +528,224 @@ function ProjectsGlow({ children }: { children: React.ReactNode }) {
 }
 
 /* ────────────────────────────────────────────────────────────────
+   Electric low-poly cursor trail (Skills section)
+   ──────────────────────────────────────────────────────────────── */
+
+/**
+ * Canvas overlay that chases the cursor with a crackling low-poly shard:
+ * a jittered vertex ring lerps behind the pointer while jagged bolts arc
+ * across the gap to where the cursor actually is. Draws only while the
+ * pointer is inside the host section (its direct parent) and fades out
+ * on leave, so the rAF loop isn't running the rest of the time.
+ */
+function ElectricTrail() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const prefersReducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    const canvas = canvasRef.current;
+    const host = canvas?.parentElement;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !host || !ctx) return;
+
+    let raf = 0;
+    let running = false;
+    let inside = false;
+    let energy = 0; // fades the whole effect in/out
+    let lastJolt = 0;
+    const target = { x: 0, y: 0 };
+    const trail = { x: 0, y: 0 };
+
+    // Ring vertices (angle + radius) and per-bolt jitter, regenerated on a
+    // slow cadence so the shape crackles instead of vibrating every frame.
+    let ring: { a: number; r: number }[] = [];
+    let bolts: number[][] = [];
+    const jolt = () => {
+      const n = 7;
+      ring = Array.from({ length: n }, (_, i) => ({
+        a: (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.6,
+        // Wide enough that snapped vertices spread across 1-2 grid cells
+        r: 16 + Math.random() * 30,
+      }));
+      bolts = Array.from({ length: 3 }, () =>
+        Array.from({ length: 5 }, () => Math.random() - 0.5),
+      );
+    };
+    jolt();
+
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(host.clientWidth * dpr);
+      canvas.height = Math.round(host.clientHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(host);
+
+    // Snap to the .dot-grid lattice (28px tiles, dot at each tile center)
+    // so vertices and bolt joints land exactly on the background dots.
+    const GRID = 28;
+    const snap = (v: number) =>
+      Math.round((v - GRID / 2) / GRID) * GRID + GRID / 2;
+
+    const path = (pts: [number, number][], close?: boolean) => {
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      if (close) ctx.closePath();
+    };
+
+    const stroke = (color: string, width: number, alpha: number) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.globalAlpha = alpha;
+      ctx.stroke();
+    };
+
+    const step = (t: number) => {
+      // The shard trails the cursor; bolts bridge the remaining gap.
+      trail.x += (target.x - trail.x) * 0.11;
+      trail.y += (target.y - trail.y) * 0.11;
+      energy += inside ? (1 - energy) * 0.09 : -energy * 0.07;
+      if (t - lastJolt > 70) {
+        jolt();
+        lastJolt = t;
+      }
+
+      ctx.clearRect(0, 0, host.clientWidth, host.clientHeight);
+      if (!inside && energy < 0.02) {
+        running = false;
+        return;
+      }
+
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      const teal = "#548687";
+      const terracotta = "#b0413e";
+      // Shard hub and ring vertices, snapped to grid dots (deduped, since
+      // neighbouring vertices can land on the same dot).
+      const hub: [number, number] = [snap(trail.x), snap(trail.y)];
+      const pts: [number, number][] = [];
+      ring.forEach(({ a, r }) => {
+        const x = snap(trail.x + Math.cos(a) * r);
+        const y = snap(trail.y + Math.sin(a) * r);
+        if (!pts.some(([qx, qy]) => qx === x && qy === y)) pts.push([x, y]);
+      });
+
+      // Low-poly shard: faint fill, glow pass, crisp ring, inner mesh.
+      path(pts, true);
+      ctx.fillStyle = teal;
+      ctx.globalAlpha = 0.08 * energy;
+      ctx.fill();
+      stroke(teal, 5, 0.14 * energy);
+      stroke(teal, 1.4, 0.85 * energy);
+      pts.forEach(([x, y], i) => {
+        if (i % 2 === 0) {
+          path([hub, [x, y]]);
+          stroke(teal, 1, 0.3 * energy);
+        }
+      });
+
+      // Bolts arcing from the shard to the grid dot nearest the cursor.
+      const end: [number, number] = [snap(target.x), snap(target.y)];
+      const dx = end[0] - hub[0];
+      const dy = end[1] - hub[1];
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0) {
+        const px = -dy / dist;
+        const py = dx / dist;
+        const amp = Math.min(34, dist * 0.4);
+        bolts.forEach((offsets, b) => {
+          const boltPts: [number, number][] = [hub];
+          offsets.forEach((off, i) => {
+            const f = (i + 1) / (offsets.length + 1);
+            const jx = snap(hub[0] + dx * f + px * off * amp);
+            const jy = snap(hub[1] + dy * f + py * off * amp);
+            const prev = boltPts[boltPts.length - 1];
+            if (prev[0] !== jx || prev[1] !== jy) boltPts.push([jx, jy]);
+          });
+          boltPts.push(end);
+          const color = b === 2 ? terracotta : teal;
+          path(boltPts);
+          stroke(color, 4, 0.12 * energy);
+          stroke(color, 1.2, 0.75 * energy);
+        });
+      }
+
+      // Spark nodes on a couple of vertices, terracotta for contrast.
+      ctx.fillStyle = terracotta;
+      ctx.globalAlpha = 0.8 * energy;
+      pts.forEach(([x, y], i) => {
+        if (i % 3 === 0) ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+      });
+      ctx.globalAlpha = 1;
+
+      raf = requestAnimationFrame(step);
+    };
+
+    const onMove = (e: MouseEvent) => {
+      const rect = host.getBoundingClientRect();
+      target.x = e.clientX - rect.left;
+      target.y = e.clientY - rect.top;
+      if (!inside) {
+        inside = true;
+        // Fresh entry: spawn at the cursor instead of flying across.
+        if (energy < 0.02) {
+          trail.x = target.x;
+          trail.y = target.y;
+        }
+      }
+      if (!running) {
+        running = true;
+        raf = requestAnimationFrame(step);
+      }
+    };
+    const onLeave = () => {
+      inside = false;
+    };
+    host.addEventListener("mousemove", onMove);
+    host.addEventListener("mouseleave", onLeave);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      host.removeEventListener("mousemove", onMove);
+      host.removeEventListener("mouseleave", onLeave);
+      ro.disconnect();
+    };
+  }, [prefersReducedMotion]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
    Page
    ──────────────────────────────────────────────────────────────── */
 
 export default function Home() {
   const prefersReducedMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeProject, setActiveProject] = useState<number | null>(null);
-  const [cursorVisible, setCursorVisible] = useState(false);
-  const [cursorX, setCursorX] = useState(0);
-  const [cursorY, setCursorY] = useState(0);
-  const [cursorOffsetX, setCursorOffsetX] = useState(0);
-  const [cursorOffsetY, setCursorOffsetY] = useState(0);
-  const [cursorClicking, setCursorClicking] = useState(false);
-  const [cursorFading, setCursorFading] = useState(false);
-  const [projectRipple, setProjectRipple] = useState(false);
-  const firstProjectRef = useRef<HTMLDivElement>(null);
-  const projectsTriggered = useRef(false);
-  const cursorTrackingRef = useRef(false);
+  // Radio-style projects: at most one open at a time. Scrolling opens the
+  // row being passed; a manual toggle briefly suppresses the auto-open so
+  // the layout shift it causes can't immediately fight the user.
+  const [openProject, setOpenProject] = useState<number | null>(null);
+  const lastScrollY = useRef(0);
+  const suppressAutoUntil = useRef(0);
 
   // Helper: skip entrance offsets when the visitor prefers reduced motion
   const entrance = useCallback(
@@ -549,7 +755,11 @@ export default function Home() {
   );
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 60);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 60);
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollProgress(max > 0 ? window.scrollY / max : 0);
+    };
     onScroll(); // sync immediately in case the page loads mid-scroll
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -594,79 +804,49 @@ export default function Home() {
     return () => io.disconnect();
   }, []);
 
-  // Scripted "ghost cursor" demo that opens the first project.
-  // Skipped for reduced-motion users and touch devices (no cursor there).
+  // Auto-open projects one at a time as their rows scroll past, following
+  // the scroll direction, so the open panel walks through the list like a
+  // radio group.
   useEffect(() => {
-    if (prefersReducedMotion) return;
-    if (window.matchMedia("(pointer: coarse)").matches) return;
-
-    const section = document.getElementById("projects");
-    if (!section) return;
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
-
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !projectsTriggered.current) {
-          projectsTriggered.current = true;
-          const t0 = setTimeout(() => {
-            if (!firstProjectRef.current) return;
-            const rect = firstProjectRef.current.getBoundingClientRect();
-            setCursorX(rect.right - 25);
-            setCursorY(rect.top + rect.height / 2);
-            setCursorOffsetX(55);
-            setCursorOffsetY(45);
-            setCursorVisible(true);
-            cursorTrackingRef.current = true;
-            const t1 = setTimeout(() => {
-              setCursorOffsetX(0);
-              setCursorOffsetY(0);
-            }, 60);
-            const t2 = setTimeout(() => {
-              cursorTrackingRef.current = false;
-              setCursorClicking(true);
-              setProjectRipple(true);
-            }, 660);
-            const t3 = setTimeout(() => {
-              setActiveProject(0);
-            }, 800);
-            const t4 = setTimeout(() => {
-              setCursorClicking(false);
-            }, 950);
-            const t5 = setTimeout(() => {
-              setCursorFading(true);
-            }, 1100);
-            const t6 = setTimeout(() => {
-              setCursorVisible(false);
-              setCursorFading(false);
-            }, 1550);
-            timeouts.push(t1, t2, t3, t4, t5, t6);
-          }, 400);
-          timeouts.push(t0);
-        }
-      },
-      { threshold: 0.25 },
+    const rows = Array.from(
+      document.querySelectorAll<HTMLElement>("#projects .project-toggle"),
     );
-    io.observe(section);
-    return () => {
-      io.disconnect();
-      timeouts.forEach(clearTimeout);
-    };
-  }, [prefersReducedMotion]);
+    const io = new IntersectionObserver(
+      (entries) => {
+        const y = window.scrollY;
+        const down = y >= lastScrollY.current;
+        lastScrollY.current = y;
+        if (performance.now() < suppressAutoUntil.current) return;
+        const entering = entries
+          .filter((entry) => entry.isIntersecting)
+          .map((entry) => Number((entry.target as HTMLElement).dataset.index))
+          .filter((idx) => !Number.isNaN(idx));
+        if (entering.length === 0) return;
+        // Advance to the nearest row in the scroll direction so rows open
+        // strictly one by one, even when a fast scroll passes several rows.
+        setOpenProject((prev) => {
+          const ahead = entering.filter(
+            (idx) => prev === null || (down ? idx > prev : idx < prev),
+          );
+          if (ahead.length === 0) return prev;
+          return down ? Math.min(...ahead) : Math.max(...ahead);
+        });
+      },
+      // Collapse the observed area to a thin band at the vertical center of
+      // the viewport: a row triggers when its header crosses mid-screen.
+      // (1% tall rather than a zero-height line, which some engines drop.)
+      { threshold: 0, rootMargin: "-50% 0px -49% 0px" },
+    );
+    rows.forEach((row) => io.observe(row));
+    return () => io.disconnect();
+  }, []);
 
-  useEffect(() => {
-    if (!cursorVisible) return;
-    const onScroll = () => {
-      if (!cursorTrackingRef.current || !firstProjectRef.current) return;
-      const rect = firstProjectRef.current.getBoundingClientRect();
-      setCursorX(rect.right - 25);
-      setCursorY(rect.top + rect.height / 2);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [cursorVisible]);
-
-  const toggleProject = (i: number) =>
-    setActiveProject((prev) => (prev === i ? null : i));
+  const toggleProject = (i: number, e: React.SyntheticEvent) => {
+    // A manual toggle wins: pause the scroll auto-open while the layout
+    // shift it causes settles, so it can't instantly reopen or move on.
+    suppressAutoUntil.current = e.timeStamp + 700;
+    setOpenProject((prev) => (prev === i ? null : i));
+  };
 
   return (
     <main style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}>
@@ -691,6 +871,101 @@ export default function Home() {
           transition: top 0.2s ease;
         }
         .skip-link:focus-visible { top: 12px; }
+        ::selection { background: #b0413e; color: #ffffc7; }
+        /* Film-grain texture for the teal sections */
+        .grain::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          opacity: 0.055;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+        /* Faint dotted grid on the cream skills section */
+        .dot-grid {
+          background-image: radial-gradient(rgba(26,26,26,0.12) 1px, transparent 1.5px);
+          background-size: 28px 28px;
+        }
+        /* Nav links: terracotta underline sweeps in on hover/focus */
+        .nav-link {
+          position: relative;
+          color: #ffffc7;
+          text-decoration: none;
+          font-size: 11px;
+          letter-spacing: 2.5px;
+          text-transform: uppercase;
+          opacity: 0.75;
+          transition: opacity 0.2s ease;
+        }
+        .nav-link:hover,
+        .nav-link:focus-visible { opacity: 1; }
+        .nav-link::after {
+          content: "";
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: -6px;
+          height: 1px;
+          background: #b0413e;
+          transform: scaleX(0);
+          transform-origin: left;
+          transition: transform 0.28s ease;
+        }
+        .nav-link:hover::after,
+        .nav-link:focus-visible::after { transform: scaleX(1); }
+        /* Hand-drawn underline under "Builder." draws in after the headline lands */
+        .builder-underline {
+          stroke-dasharray: 330;
+          stroke-dashoffset: 330;
+          animation: drawUnder 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94) 1.35s forwards;
+        }
+        @keyframes drawUnder { to { stroke-dashoffset: 0; } }
+        /* Project numbers: hollow outline that fills with color on hover/open */
+        .p-num {
+          color: transparent;
+          -webkit-text-stroke: 1.5px var(--accent);
+          opacity: 0.75;
+          transition: color 0.3s ease, opacity 0.3s ease;
+        }
+        .project-toggle:hover .p-num,
+        .project-toggle:focus-visible .p-num,
+        .project-toggle[aria-expanded="true"] .p-num {
+          color: var(--accent);
+          opacity: 1;
+        }
+        @supports not (-webkit-text-stroke: 1px #000) {
+          .p-num { color: var(--accent); }
+        }
+        .project-toggle h3 { transition: transform 0.25s ease; }
+        .project-toggle:hover h3 { transform: translateX(6px); }
+        .project-toggle[aria-expanded="false"]:hover .project-plus {
+          border-color: rgba(255,255,199,0.45) !important;
+        }
+        /* Sonar ring on the current (ongoing) education entry */
+        .pulse-dot { position: relative; }
+        .pulse-dot::after {
+          content: "";
+          position: absolute;
+          inset: -6px;
+          border-radius: 50%;
+          border: 1px solid rgba(84,134,135,0.8);
+          animation: pulseRing 2.6s ease-out infinite;
+        }
+        @keyframes pulseRing {
+          0% { transform: scale(0.4); opacity: 0.8; }
+          70%, 100% { transform: scale(1.5); opacity: 0; }
+        }
+        /* Mobile menu: fade the overlay, stagger the links */
+        #mobile-menu { animation: menuFade 0.25s ease; }
+        @keyframes menuFade { from { opacity: 0; } to { opacity: 1; } }
+        .menu-link {
+          opacity: 0;
+          animation: menuLinkIn 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        @keyframes menuLinkIn {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 0.9; transform: translateY(0); }
+        }
         a:focus-visible,
         button:focus-visible,
         [role="button"]:focus-visible {
@@ -711,6 +986,53 @@ export default function Home() {
       <a href="#about" className="skip-link">
         Skip to content
       </a>
+
+      {/* SVG filter: builds one clean outline around the rendered silhouette
+          of the KH mark (dilate alpha, subtract original), so overlapping
+          glyph contours don't produce internal seams like text-stroke does. */}
+      <svg
+        width="0"
+        height="0"
+        style={{ position: "absolute" }}
+        aria-hidden="true"
+        focusable="false"
+      >
+        <defs>
+          <filter id="kh-outline" x="-5%" y="-5%" width="110%" height="110%">
+            <feMorphology
+              in="SourceAlpha"
+              operator="dilate"
+              radius="2"
+              result="dilated"
+            />
+            <feComposite
+              in="dilated"
+              in2="SourceAlpha"
+              operator="out"
+              result="ring"
+            />
+            <feFlood floodColor="#ffffc7" floodOpacity="0.16" result="tint" />
+            <feComposite in="tint" in2="ring" operator="in" />
+          </filter>
+        </defs>
+      </svg>
+
+      {/* Reading-progress bar — extends the hero's terracotta accent line */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "3px",
+          background: "#b0413e",
+          transform: `scaleX(${scrollProgress})`,
+          transformOrigin: "left",
+          zIndex: 1000,
+          pointerEvents: "none",
+        }}
+      />
 
       {/* ── NAV ── */}
       <motion.nav
@@ -781,17 +1103,7 @@ export default function Home() {
               <a
                 key={link}
                 href={`#${link.toLowerCase()}`}
-                style={{
-                  color: "#ffffc7",
-                  textDecoration: "none",
-                  fontSize: "11px",
-                  letterSpacing: "2.5px",
-                  textTransform: "uppercase",
-                  opacity: 0.75,
-                  transition: "opacity 0.2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.75")}
+                className="nav-link"
               >
                 {link}
               </a>
@@ -818,10 +1130,11 @@ export default function Home() {
             gap: "44px",
           }}
         >
-          {NAV_LINKS.map((link) => (
+          {NAV_LINKS.map((link, i) => (
             <a
               key={link}
               href={`#${link.toLowerCase()}`}
+              className="menu-link"
               onClick={() => setMenuOpen(false)}
               style={{
                 color: "#ffffc7",
@@ -830,7 +1143,7 @@ export default function Home() {
                 fontWeight: 700,
                 fontStyle: "italic",
                 letterSpacing: "-0.5px",
-                opacity: 0.9,
+                animationDelay: `${0.05 + i * 0.06}s`,
               }}
             >
               {link}
@@ -842,9 +1155,11 @@ export default function Home() {
       {/* ── HERO ── */}
       <section
         id="hero"
+        className="grain"
         style={{
           minHeight: "100vh",
-          background: "#548687",
+          background:
+            "radial-gradient(1100px 700px at 22% 42%, #5b9394 0%, #548687 55%)",
           position: "relative",
           display: "flex",
           alignItems: "center",
@@ -888,11 +1203,12 @@ export default function Home() {
           }}
         />
 
-        {/* Giant KH lettermark — slides from center, fades to ghost */}
+        {/* Giant KH lettermark — solid cream slides in from center and fades
+            to a ghost, revealing a crisp silhouette outline underneath */}
         <motion.div
           aria-hidden="true"
-          initial={entrance({ x: "-30vw", opacity: 1 })}
-          animate={{ x: 0, opacity: 0.055 }}
+          initial={entrance({ x: "-30vw" })}
+          animate={{ x: 0 }}
           transition={{ duration: 1.1, delay: 0.2, ease: E }}
           style={{
             position: "absolute",
@@ -901,7 +1217,6 @@ export default function Home() {
             transform: "translateY(-50%)",
             fontSize: "clamp(280px, 38vw, 560px)",
             fontWeight: 900,
-            color: "#ffffc7",
             lineHeight: 1,
             letterSpacing: "-16px",
             userSelect: "none",
@@ -909,7 +1224,24 @@ export default function Home() {
             fontStyle: "italic",
           }}
         >
-          KH
+          <span
+            style={{
+              position: "absolute",
+              inset: 0,
+              color: "#ffffc7",
+              filter: "url(#kh-outline)",
+            }}
+          >
+            KH
+          </span>
+          <motion.span
+            initial={entrance({ opacity: 1 })}
+            animate={{ opacity: 0.055 }}
+            transition={{ duration: 1.1, delay: 0.2, ease: E }}
+            style={{ position: "relative", color: "#ffffc7" }}
+          >
+            KH
+          </motion.span>
         </motion.div>
 
         <div
@@ -949,7 +1281,33 @@ export default function Home() {
             <br />
             Creator.
             <br />
-            <em style={{ color: "#b0413e", fontStyle: "italic" }}>Builder.</em>
+            <span style={{ position: "relative", display: "inline-block" }}>
+              <em style={{ color: "#b0413e", fontStyle: "italic" }}>
+                Builder.
+              </em>
+              <svg
+                viewBox="0 0 300 20"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  bottom: "-0.06em",
+                  width: "100%",
+                  height: "0.14em",
+                  overflow: "visible",
+                }}
+              >
+                <path
+                  className="builder-underline"
+                  d="M6 14 C 90 4, 200 5, 294 12"
+                  stroke="rgba(255,255,199,0.85)"
+                  strokeWidth="5"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
           </motion.h1>
 
           {/* Tagline */}
@@ -1236,6 +1594,9 @@ export default function Home() {
                     }}
                   >
                     <div
+                      className={
+                        i === EDUCATION.length - 1 ? "pulse-dot" : undefined
+                      }
                       style={{
                         width: "10px",
                         height: "10px",
@@ -1592,12 +1953,23 @@ export default function Home() {
       {/* ── SKILLS ── */}
       <section
         id="skills"
+        className="dot-grid"
         style={{
           padding: "clamp(80px, 10vw, 130px) clamp(32px, 7vw, 96px)",
-          background: "#ffffc7",
+          backgroundColor: "#ffffc7",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <div style={{ maxWidth: "1140px", margin: "0 auto" }}>
+        {/* <ElectricTrail /> */}
+        <div
+          style={{
+            maxWidth: "1140px",
+            margin: "0 auto",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
           <div className="reveal" style={{ marginBottom: "72px" }}>
             <Eyebrow label="Expertise" />
             <h2
@@ -1729,7 +2101,7 @@ export default function Home() {
 
           <ProjectsGlow>
             {PROJECTS.map((project, i) => {
-              const isActive = activeProject === i;
+              const isActive = openProject === i;
               const detailsId = `project-details-${project.num}`;
               return (
                 <div
@@ -1750,31 +2122,34 @@ export default function Home() {
                     }}
                   >
                     <div
-                      ref={i === 0 ? firstProjectRef : undefined}
-                      className="project-row"
+                      data-index={i}
+                      className="project-row project-toggle"
                       role="button"
                       tabIndex={0}
                       aria-expanded={isActive}
                       aria-controls={detailsId}
-                      onClick={() => toggleProject(i)}
+                      onClick={(e) => toggleProject(i, e)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          toggleProject(i);
+                          toggleProject(i, e);
                         }
                       }}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: isMobile
-                          ? "48px 1fr 40px"
-                          : "clamp(64px, 9vw, 108px) 1fr 50px",
-                        gap: isMobile ? "16px" : "28px",
-                        alignItems: "center",
-                        cursor: "pointer",
-                      }}
+                      style={
+                        {
+                          display: "grid",
+                          gridTemplateColumns: isMobile
+                            ? "48px 1fr 40px"
+                            : "clamp(64px, 9vw, 108px) 1fr 50px",
+                          gap: isMobile ? "16px" : "28px",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          "--accent": project.accent,
+                        } as React.CSSProperties
+                      }
                     >
                       <span
-                        className="project-num"
+                        className="project-num p-num"
                         aria-hidden="true"
                         style={{
                           fontSize: isMobile
@@ -1782,8 +2157,6 @@ export default function Home() {
                             : "clamp(40px, 5vw, 56px)",
                           fontWeight: 700,
                           fontStyle: "italic",
-                          color: project.accent,
-                          opacity: isActive ? 1 : 0.55,
                           lineHeight: 1,
                         }}
                       >
@@ -1855,76 +2228,192 @@ export default function Home() {
                           color: "#ffffc7",
                           transform: isActive ? "rotate(45deg)" : "",
                           background: isActive ? "#b0413e" : "transparent",
+                          transition:
+                            "transform 0.3s ease, background 0.3s ease, border-color 0.25s ease",
                         }}
                       >
                         <Plus size={18} strokeWidth={1.5} />
                       </div>
                     </div>
 
-                    {isActive && (
-                      <div
-                        id={detailsId}
-                        role="region"
-                        aria-label={project.title}
-                        style={{
-                          marginTop: "32px",
-                          paddingTop: "32px",
-                          borderTop: "1px solid rgba(255,255,199,0.06)",
-                          display: "grid",
-                          gridTemplateColumns:
-                            "repeat(auto-fit, minmax(260px, 1fr))",
-                          gap: "48px",
-                          animation: "expandDown 0.35s ease both",
-                        }}
-                      >
-                        <div>
+                    <AnimatePresence initial={false}>
+                      {isActive && (
+                        <motion.div
+                          key="details"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{
+                            duration: prefersReducedMotion ? 0 : 0.45,
+                            ease: E,
+                          }}
+                          style={{ overflow: "hidden" }}
+                        >
+                          <div style={{ height: "32px" }} />
                           <div
+                            id={detailsId}
+                            role="region"
+                            aria-label={project.title}
                             style={{
-                              fontSize: "12px",
-                              letterSpacing: "2.5px",
-                              textTransform: "uppercase",
-                              color: "#548687",
-                              marginBottom: "14px",
-                              fontWeight: 700,
+                              position: "relative",
+                              paddingTop: "32px",
+                              borderTop: "1px solid rgba(255,255,199,0.06)",
+                              display: "grid",
+                              gridTemplateColumns:
+                                "repeat(auto-fit, minmax(260px, 1fr))",
+                              gap: "48px",
                             }}
                           >
-                            About this project
+                            <div>
+                              <div
+                                style={{
+                                  fontSize: "12px",
+                                  letterSpacing: "2.5px",
+                                  textTransform: "uppercase",
+                                  color: "#548687",
+                                  marginBottom: "14px",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                About this project
+                              </div>
+                              <p
+                                style={{
+                                  color: "rgba(255,255,199,0.65)",
+                                  fontSize: "17px",
+                                  lineHeight: 1.85,
+                                }}
+                              >
+                                {project.description}
+                              </p>
+                            </div>
+                            <div>
+                              <div
+                                style={{
+                                  fontSize: "12px",
+                                  letterSpacing: "2.5px",
+                                  textTransform: "uppercase",
+                                  color: "#b0413e",
+                                  marginBottom: "14px",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                What I learned
+                              </div>
+                              <p
+                                style={{
+                                  color: "rgba(255,255,199,0.65)",
+                                  fontSize: "17px",
+                                  lineHeight: 1.85,
+                                }}
+                              >
+                                {project.learnings}
+                              </p>
+                            </div>
+                            {/* Bottom-right corner: source link or closed-
+                                source badge. Absolute on desktop so it adds
+                                no extra height; in-flow on mobile where the
+                                single column would otherwise overlap it. */}
+                            <div
+                              style={
+                                isMobile
+                                  ? {
+                                      display: "flex",
+                                      justifyContent: "flex-end",
+                                    }
+                                  : {
+                                      position: "absolute",
+                                      right: 0,
+                                      bottom: 0,
+                                    }
+                              }
+                            >
+                              {project.github ? (
+                                <Rippleable
+                                  as="a"
+                                  href={project.github}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  rippleColor="rgba(255,255,199,0.12)"
+                                  aria-label={`${project.title} on GitHub (opens in a new tab)`}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "10px",
+                                    padding: "12px 26px",
+                                    border: `1px solid ${project.accent}66`,
+                                    background: "#1a1a1a",
+                                    color: "#ffffc7",
+                                    textDecoration: "none",
+                                    fontSize: "11px",
+                                    letterSpacing: "2px",
+                                    textTransform: "uppercase",
+                                    fontWeight: 700,
+                                    transition:
+                                      "border-color 0.2s ease, transform 0.2s ease",
+                                  }}
+                                  onMouseEnter={(
+                                    e: React.MouseEvent<HTMLAnchorElement>,
+                                  ) => {
+                                    e.currentTarget.style.borderColor =
+                                      project.accent;
+                                    e.currentTarget.style.transform =
+                                      "translateY(-2px)";
+                                  }}
+                                  onMouseLeave={(
+                                    e: React.MouseEvent<HTMLAnchorElement>,
+                                  ) => {
+                                    e.currentTarget.style.borderColor = `${project.accent}66`;
+                                    e.currentTarget.style.transform = "";
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      position: "relative",
+                                      zIndex: 1,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "10px",
+                                    }}
+                                  >
+                                    <svg
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="currentColor"
+                                      aria-hidden="true"
+                                    >
+                                      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+                                    </svg>
+                                    View on GitHub
+                                  </span>
+                                </Rippleable>
+                              ) : (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "10px",
+                                    padding: "12px 26px",
+                                    border: "1px dashed rgba(255,255,199,0.25)",
+                                    background: "#1a1a1a",
+                                    color: "rgba(255,255,199,0.45)",
+                                    fontSize: "11px",
+                                    letterSpacing: "2px",
+                                    textTransform: "uppercase",
+                                    fontWeight: 700,
+                                    cursor: "default",
+                                  }}
+                                >
+                                  <Lock size={14} aria-hidden="true" />
+                                  Closed Source
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <p
-                            style={{
-                              color: "rgba(255,255,199,0.65)",
-                              fontSize: "17px",
-                              lineHeight: 1.85,
-                            }}
-                          >
-                            {project.description}
-                          </p>
-                        </div>
-                        <div>
-                          <div
-                            style={{
-                              fontSize: "12px",
-                              letterSpacing: "2.5px",
-                              textTransform: "uppercase",
-                              color: "#b0413e",
-                              marginBottom: "14px",
-                              fontWeight: 700,
-                            }}
-                          >
-                            What I learned
-                          </div>
-                          <p
-                            style={{
-                              color: "rgba(255,255,199,0.65)",
-                              fontSize: "17px",
-                              lineHeight: 1.85,
-                            }}
-                          >
-                            {project.learnings}
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               );
@@ -1938,9 +2427,10 @@ export default function Home() {
       {/* ── CONTACT ── */}
       <section
         id="contact"
+        className="grain"
         style={{
           padding: "clamp(80px, 10vw, 130px) clamp(32px, 7vw, 96px)",
-          background: "#548687",
+          background: "linear-gradient(165deg, #578b8c 0%, #4d7c7d 100%)",
           position: "relative",
           overflow: "hidden",
         }}
@@ -1953,7 +2443,6 @@ export default function Home() {
             bottom: "-80px",
             fontSize: "clamp(240px, 35vw, 500px)",
             fontWeight: 900,
-            color: "rgba(255,255,199,0.05)",
             lineHeight: 1,
             letterSpacing: "-16px",
             userSelect: "none",
@@ -1961,7 +2450,21 @@ export default function Home() {
             fontStyle: "italic",
           }}
         >
-          KH
+          <span
+            style={{
+              position: "absolute",
+              inset: 0,
+              color: "#ffffc7",
+              filter: "url(#kh-outline)",
+            }}
+          >
+            KH
+          </span>
+          <span
+            style={{ position: "relative", color: "rgba(255,255,199,0.05)" }}
+          >
+            KH
+          </span>
         </div>
 
         <div
@@ -2089,74 +2592,6 @@ export default function Home() {
           2026 Portfolio
         </span>
       </footer>
-
-      {/* ── GHOST CURSOR (demo) ── */}
-      {cursorVisible && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            left: cursorX,
-            top: cursorY,
-            pointerEvents: "none",
-            zIndex: 9999,
-          }}
-        >
-          <div
-            style={{
-              transform: `translate(${cursorOffsetX}px, ${cursorOffsetY}px)`,
-              transition:
-                "transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease",
-              opacity: cursorFading ? 0 : 1,
-            }}
-          >
-            <div
-              style={{
-                transform: `translate(-50%, -50%) scale(${cursorClicking ? 0.65 : 1})`,
-                transition: "transform 0.13s ease, background 0.13s ease",
-                width: "20px",
-                height: "20px",
-                borderRadius: "50%",
-                border: "1.5px solid rgba(255,255,199,0.8)",
-                background: cursorClicking
-                  ? "rgba(255,255,199,0.22)"
-                  : "rgba(255,255,199,0.06)",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  width: "4px",
-                  height: "4px",
-                  borderRadius: "50%",
-                  background: "rgba(255,255,199,0.9)",
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-      {projectRipple && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            left: cursorX - 20,
-            top: cursorY - 20,
-            width: "40px",
-            height: "40px",
-            borderRadius: "50%",
-            border: "1px solid rgba(255,255,199,0.4)",
-            pointerEvents: "none",
-            zIndex: 9998,
-            animation: "rippleOut 0.7s ease forwards",
-          }}
-          onAnimationEnd={() => setProjectRipple(false)}
-        />
-      )}
     </main>
   );
 }
