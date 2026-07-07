@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import DotGrid from "@/components/DotGrid";
+import Noise from "@/components/Noise";
 import {
   ArrowRight,
   ChevronDown,
@@ -19,6 +21,16 @@ import {
 const E = [0.25, 0.46, 0.45, 0.94] as const;
 
 const NAV_LINKS = ["About", "Skills", "Projects", "Contact"];
+
+// Nav text color per section backdrop, picked for maximum contrast: cream
+// over the teal and near-black sections, ink over the cream skills section.
+const NAV_SECTION_COLOR: Record<string, string> = {
+  hero: "#ffffc7",
+  about: "#ffffc7",
+  skills: "#1a1a1a",
+  projects: "#ffffc7",
+  contact: "#ffffc7",
+};
 
 /* ────────────────────────────────────────────────────────────────
    Ripple hover effect
@@ -738,6 +750,7 @@ export default function Home() {
   const prefersReducedMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [navColor, setNavColor] = useState(NAV_SECTION_COLOR.hero);
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Radio-style projects: at most one open at a time. Scrolling opens the
@@ -759,6 +772,16 @@ export default function Home() {
       setScrolled(window.scrollY > 60);
       const max = document.documentElement.scrollHeight - window.innerHeight;
       setScrollProgress(max > 0 ? window.scrollY / max : 0);
+      // Recolor the nav text against whichever section sits behind it,
+      // sampled at the nav's vertical midline.
+      const sampleY = 45;
+      for (const [id, color] of Object.entries(NAV_SECTION_COLOR)) {
+        const rect = document.getElementById(id)?.getBoundingClientRect();
+        if (rect && rect.top <= sampleY && rect.bottom > sampleY) {
+          setNavColor(color);
+          break;
+        }
+      }
     };
     onScroll(); // sync immediately in case the page loads mid-scroll
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -850,139 +873,6 @@ export default function Home() {
 
   return (
     <main style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}>
-      {/* Page-level polish: smooth anchor scrolling with room for the fixed
-          nav, visible keyboard focus, and a reduced-motion escape hatch. */}
-      <style>{`
-        html { scroll-behavior: smooth; }
-        section[id] { scroll-margin-top: 84px; }
-        .skip-link {
-          position: fixed;
-          top: -100px;
-          left: 16px;
-          z-index: 1001;
-          padding: 10px 18px;
-          background: #b0413e;
-          color: #ffffc7;
-          font-size: 11px;
-          letter-spacing: 2px;
-          text-transform: uppercase;
-          font-weight: 700;
-          text-decoration: none;
-          transition: top 0.2s ease;
-        }
-        .skip-link:focus-visible { top: 12px; }
-        ::selection { background: #b0413e; color: #ffffc7; }
-        /* Film-grain texture for the teal sections */
-        .grain::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          opacity: 0.055;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-        }
-        /* Faint dotted grid on the cream skills section */
-        .dot-grid {
-          background-image: radial-gradient(rgba(26,26,26,0.12) 1px, transparent 1.5px);
-          background-size: 28px 28px;
-        }
-        /* Nav links: terracotta underline sweeps in on hover/focus */
-        .nav-link {
-          position: relative;
-          color: #ffffc7;
-          text-decoration: none;
-          font-size: 11px;
-          letter-spacing: 2.5px;
-          text-transform: uppercase;
-          opacity: 0.75;
-          transition: opacity 0.2s ease;
-        }
-        .nav-link:hover,
-        .nav-link:focus-visible { opacity: 1; }
-        .nav-link::after {
-          content: "";
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: -6px;
-          height: 1px;
-          background: #b0413e;
-          transform: scaleX(0);
-          transform-origin: left;
-          transition: transform 0.28s ease;
-        }
-        .nav-link:hover::after,
-        .nav-link:focus-visible::after { transform: scaleX(1); }
-        /* Hand-drawn underline under "Builder." draws in after the headline lands */
-        .builder-underline {
-          stroke-dasharray: 330;
-          stroke-dashoffset: 330;
-          animation: drawUnder 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94) 1.35s forwards;
-        }
-        @keyframes drawUnder { to { stroke-dashoffset: 0; } }
-        /* Project numbers: hollow outline that fills with color on hover/open */
-        .p-num {
-          color: transparent;
-          -webkit-text-stroke: 1.5px var(--accent);
-          opacity: 0.75;
-          transition: color 0.3s ease, opacity 0.3s ease;
-        }
-        .project-toggle:hover .p-num,
-        .project-toggle:focus-visible .p-num,
-        .project-toggle[aria-expanded="true"] .p-num {
-          color: var(--accent);
-          opacity: 1;
-        }
-        @supports not (-webkit-text-stroke: 1px #000) {
-          .p-num { color: var(--accent); }
-        }
-        .project-toggle h3 { transition: transform 0.25s ease; }
-        .project-toggle:hover h3 { transform: translateX(6px); }
-        .project-toggle[aria-expanded="false"]:hover .project-plus {
-          border-color: rgba(255,255,199,0.45) !important;
-        }
-        /* Sonar ring on the current (ongoing) education entry */
-        .pulse-dot { position: relative; }
-        .pulse-dot::after {
-          content: "";
-          position: absolute;
-          inset: -6px;
-          border-radius: 50%;
-          border: 1px solid rgba(84,134,135,0.8);
-          animation: pulseRing 2.6s ease-out infinite;
-        }
-        @keyframes pulseRing {
-          0% { transform: scale(0.4); opacity: 0.8; }
-          70%, 100% { transform: scale(1.5); opacity: 0; }
-        }
-        /* Mobile menu: fade the overlay, stagger the links */
-        #mobile-menu { animation: menuFade 0.25s ease; }
-        @keyframes menuFade { from { opacity: 0; } to { opacity: 1; } }
-        .menu-link {
-          opacity: 0;
-          animation: menuLinkIn 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-        }
-        @keyframes menuLinkIn {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 0.9; transform: translateY(0); }
-        }
-        a:focus-visible,
-        button:focus-visible,
-        [role="button"]:focus-visible {
-          outline: 2px solid currentColor;
-          outline-offset: 3px;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          html { scroll-behavior: auto; }
-          *, *::before, *::after {
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
-          }
-          .reveal { opacity: 1 !important; transform: none !important; }
-        }
-      `}</style>
-
       <a href="#about" className="skip-link">
         Skip to content
       </a>
@@ -1041,6 +931,8 @@ export default function Home() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.65, delay: 0.25, ease: E }}
         style={{
+          // Drives .nav-link color; logo and menu button read navColor directly
+          ["--nav-color" as string]: navColor,
           position: "fixed",
           top: 0,
           left: 0,
@@ -1065,10 +957,11 @@ export default function Home() {
           style={{
             fontSize: "26px",
             fontWeight: 900,
-            color: "#ffffc7",
+            color: navColor,
             letterSpacing: "-1px",
             fontStyle: "italic",
             textDecoration: "none",
+            transition: "color 0.35s ease",
           }}
         >
           KH
@@ -1082,12 +975,13 @@ export default function Home() {
             style={{
               background: "none",
               border: "none",
-              color: "#ffffc7",
+              color: menuOpen ? "#ffffc7" : navColor,
               cursor: "pointer",
               padding: "4px",
               borderRadius: "6px",
               display: "flex",
               alignItems: "center",
+              transition: "color 0.35s ease",
             }}
             aria-label="Toggle menu"
             aria-expanded={menuOpen}
@@ -1155,7 +1049,6 @@ export default function Home() {
       {/* ── HERO ── */}
       <section
         id="hero"
-        className="grain"
         style={{
           minHeight: "100vh",
           background:
@@ -1439,6 +1332,11 @@ export default function Home() {
             style={{ animation: "scrollLine 2.2s ease infinite" }}
           />
         </motion.div>
+
+        {/* Subtle animated film grain (React Bits Noise); kept as the last
+            child so it overlays the backdrop like the old .grain::after,
+            while the z-indexed hero copy stays above it. */}
+        <Noise patternRefreshInterval={3} patternAlpha={12} />
       </section>
 
       {/* ── ABOUT ── */}
@@ -1953,7 +1851,6 @@ export default function Home() {
       {/* ── SKILLS ── */}
       <section
         id="skills"
-        className="dot-grid"
         style={{
           padding: "clamp(80px, 10vw, 130px) clamp(32px, 7vw, 96px)",
           backgroundColor: "#ffffc7",
@@ -1961,6 +1858,20 @@ export default function Home() {
           overflow: "hidden",
         }}
       >
+        {/* Interactive dot-grid backdrop (React Bits): dots tint teal near
+            the cursor, scatter on fast moves, and shock outward on click.
+            Cell size stays 28px to match the old static .dot-grid lattice. */}
+        <DotGrid
+          dotSize={4}
+          gap={24}
+          baseColor="#e3e3b1"
+          activeColor="#548687"
+          proximity={130}
+          shockRadius={220}
+          shockStrength={4}
+          resistance={700}
+          returnDuration={1.3}
+        />
         {/* <ElectricTrail /> */}
         <div
           style={{
@@ -2427,7 +2338,6 @@ export default function Home() {
       {/* ── CONTACT ── */}
       <section
         id="contact"
-        className="grain"
         style={{
           padding: "clamp(80px, 10vw, 130px) clamp(32px, 7vw, 96px)",
           background: "linear-gradient(165deg, #578b8c 0%, #4d7c7d 100%)",
@@ -2559,6 +2469,10 @@ export default function Home() {
             </Rippleable>
           </div>
         </div>
+
+        {/* Subtle animated film grain (React Bits Noise), replacing the old
+            static .grain::after texture. */}
+        <Noise patternRefreshInterval={3} patternAlpha={12} />
       </section>
 
       {/* ── FOOTER ── */}

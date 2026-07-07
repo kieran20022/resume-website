@@ -1,15 +1,26 @@
 {
   "permissions": {
-    "allow": []
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ]
   },
+  "enabledMcpjsonServers": [
+    "shadcn"
+  ],
   "mcpServers": {
     "magic-ui": {
       "command": "npx",
-      "args": ["-y", "@magicui/mcp"]
+      "args": [
+        "-y",
+        "@magicui/mcp"
+      ]
     },
     "aceternity-ui": {
       "command": "npx",
-      "args": ["-y", "@aceternity/mcp"]
+      "args": [
+        "-y",
+        "@aceternity/mcp"
+      ]
     }
   }
 }

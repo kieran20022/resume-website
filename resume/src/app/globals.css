@@ -98,7 +98,8 @@ body {
   isolation: isolate;
   padding: 16px;
   border-radius: 10px;
-  background-color: transparent;
+  backdrop-filter: blur(2px);
+  background-color: #1a1a1a23;
   transition:
     transform 0.15s ease-in,
     background-color 0.35s ease-in,
@@ -115,8 +116,8 @@ body {
   border-radius: 10px;
   background: radial-gradient(
     circle 420px at var(--mx, 50%) var(--my, 50%),
-    rgba(84, 134, 135, 0.32),
-    rgba(84, 134, 135, 0.16) 100%
+    #1a1a1a23,
+    #1a1a1a23 100%
   );
   opacity: 0;
   transition: opacity 0.4s ease-in;
@@ -125,8 +126,8 @@ body {
 
 .reveal.skill-card:hover {
   transform: translateY(-10px);
-  background-color: rgba(84, 134, 135, 0.14);
-  box-shadow: 0 14px 40px rgba(84, 134, 135, 0.28);
+  backdrop-filter: blur(4px);
+  /* box-shadow: 0 14px 40px rgba(84, 134, 135, 0.28); */
 }
 
 .skill-card:hover::before {
@@ -167,4 +168,178 @@ body {
 
 .reveal.project-card:hover {
   transform: translateX(10px);
+}
+
+/* ── Page chrome: smooth anchor scrolling with room for the fixed nav,
+   visible keyboard focus, and a reduced-motion escape hatch ── */
+
+section[id] {
+  scroll-margin-top: 84px;
+}
+
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: 1001;
+  padding: 10px 18px;
+  background: var(--terracotta);
+  color: var(--cream);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 700;
+  text-decoration: none;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus-visible {
+  top: 12px;
+}
+
+::selection {
+  background: var(--terracotta);
+  color: var(--cream);
+}
+
+/* Nav links: terracotta underline sweeps in on hover/focus. Text color
+   follows --nav-color, set by the nav to contrast the section behind it. */
+.nav-link {
+  position: relative;
+  color: var(--nav-color, var(--cream));
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  opacity: 0.8;
+  transition: opacity 0.2s ease, color 0.35s ease;
+}
+
+.nav-link:hover,
+.nav-link:focus-visible {
+  opacity: 1;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 1px;
+  background: var(--terracotta);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.28s ease;
+}
+
+.nav-link:hover::after,
+.nav-link:focus-visible::after {
+  transform: scaleX(1);
+}
+
+/* Hand-drawn underline under "Builder." draws in after the headline lands */
+.builder-underline {
+  stroke-dasharray: 330;
+  stroke-dashoffset: 330;
+  animation: drawUnder 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94) 1.35s forwards;
+}
+
+@keyframes drawUnder {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Project numbers: hollow outline that fills with color on hover/open */
+.p-num {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--accent);
+  opacity: 0.75;
+  transition: color 0.3s ease, opacity 0.3s ease;
+}
+
+.project-toggle:hover .p-num,
+.project-toggle:focus-visible .p-num,
+.project-toggle[aria-expanded="true"] .p-num {
+  color: var(--accent);
+  opacity: 1;
+}
+
+@supports not (-webkit-text-stroke: 1px #000) {
+  .p-num { color: var(--accent); }
+}
+
+.project-toggle h3 {
+  transition: transform 0.25s ease;
+}
+
+.project-toggle:hover h3 {
+  transform: translateX(6px);
+}
+
+.project-toggle[aria-expanded="false"]:hover .project-plus {
+  border-color: rgba(255, 255, 199, 0.45) !important;
+}
+
+/* Sonar ring on the current (ongoing) education entry */
+.pulse-dot {
+  position: relative;
+}
+
+.pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1px solid rgba(84, 134, 135, 0.8);
+  animation: pulseRing 2.6s ease-out infinite;
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(0.4); opacity: 0.8; }
+  70%, 100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* Mobile menu: fade the overlay, stagger the links */
+#mobile-menu {
+  animation: menuFade 0.25s ease;
+}
+
+@keyframes menuFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.menu-link {
+  opacity: 0;
+  animation: menuLinkIn 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes menuLinkIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 0.9; transform: translateY(0); }
+}
+
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
