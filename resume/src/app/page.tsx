@@ -528,6 +528,209 @@ function ProjectsGlow({ children }: { children: React.ReactNode }) {
 }
 
 /* ────────────────────────────────────────────────────────────────
+   Electric low-poly cursor trail (Skills section)
+   ──────────────────────────────────────────────────────────────── */
+
+/**
+ * Canvas overlay that chases the cursor with a crackling low-poly shard:
+ * a jittered vertex ring lerps behind the pointer while jagged bolts arc
+ * across the gap to where the cursor actually is. Draws only while the
+ * pointer is inside the host section (its direct parent) and fades out
+ * on leave, so the rAF loop isn't running the rest of the time.
+ */
+function ElectricTrail() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const prefersReducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    const canvas = canvasRef.current;
+    const host = canvas?.parentElement;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !host || !ctx) return;
+
+    let raf = 0;
+    let running = false;
+    let inside = false;
+    let energy = 0; // fades the whole effect in/out
+    let lastJolt = 0;
+    const target = { x: 0, y: 0 };
+    const trail = { x: 0, y: 0 };
+
+    // Ring vertices (angle + radius) and per-bolt jitter, regenerated on a
+    // slow cadence so the shape crackles instead of vibrating every frame.
+    let ring: { a: number; r: number }[] = [];
+    let bolts: number[][] = [];
+    const jolt = () => {
+      const n = 7;
+      ring = Array.from({ length: n }, (_, i) => ({
+        a: (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.6,
+        // Wide enough that snapped vertices spread across 1-2 grid cells
+        r: 16 + Math.random() * 30,
+      }));
+      bolts = Array.from({ length: 3 }, () =>
+        Array.from({ length: 5 }, () => Math.random() - 0.5),
+      );
+    };
+    jolt();
+
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(host.clientWidth * dpr);
+      canvas.height = Math.round(host.clientHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(host);
+
+    // Snap to the .dot-grid lattice (28px tiles, dot at each tile center)
+    // so vertices and bolt joints land exactly on the background dots.
+    const GRID = 28;
+    const snap = (v: number) =>
+      Math.round((v - GRID / 2) / GRID) * GRID + GRID / 2;
+
+    const path = (pts: [number, number][], close?: boolean) => {
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      if (close) ctx.closePath();
+    };
+
+    const stroke = (color: string, width: number, alpha: number) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.globalAlpha = alpha;
+      ctx.stroke();
+    };
+
+    const step = (t: number) => {
+      // The shard trails the cursor; bolts bridge the remaining gap.
+      trail.x += (target.x - trail.x) * 0.11;
+      trail.y += (target.y - trail.y) * 0.11;
+      energy += inside ? (1 - energy) * 0.09 : -energy * 0.07;
+      if (t - lastJolt > 70) {
+        jolt();
+        lastJolt = t;
+      }
+
+      ctx.clearRect(0, 0, host.clientWidth, host.clientHeight);
+      if (!inside && energy < 0.02) {
+        running = false;
+        return;
+      }
+
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      const teal = "#548687";
+      const terracotta = "#b0413e";
+      // Shard hub and ring vertices, snapped to grid dots (deduped, since
+      // neighbouring vertices can land on the same dot).
+      const hub: [number, number] = [snap(trail.x), snap(trail.y)];
+      const pts: [number, number][] = [];
+      ring.forEach(({ a, r }) => {
+        const x = snap(trail.x + Math.cos(a) * r);
+        const y = snap(trail.y + Math.sin(a) * r);
+        if (!pts.some(([qx, qy]) => qx === x && qy === y)) pts.push([x, y]);
+      });
+
+      // Low-poly shard: faint fill, glow pass, crisp ring, inner mesh.
+      path(pts, true);
+      ctx.fillStyle = teal;
+      ctx.globalAlpha = 0.08 * energy;
+      ctx.fill();
+      stroke(teal, 5, 0.14 * energy);
+      stroke(teal, 1.4, 0.85 * energy);
+      pts.forEach(([x, y], i) => {
+        if (i % 2 === 0) {
+          path([hub, [x, y]]);
+          stroke(teal, 1, 0.3 * energy);
+        }
+      });
+
+      // Bolts arcing from the shard to the grid dot nearest the cursor.
+      const end: [number, number] = [snap(target.x), snap(target.y)];
+      const dx = end[0] - hub[0];
+      const dy = end[1] - hub[1];
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0) {
+        const px = -dy / dist;
+        const py = dx / dist;
+        const amp = Math.min(34, dist * 0.4);
+        bolts.forEach((offsets, b) => {
+          const boltPts: [number, number][] = [hub];
+          offsets.forEach((off, i) => {
+            const f = (i + 1) / (offsets.length + 1);
+            const jx = snap(hub[0] + dx * f + px * off * amp);
+            const jy = snap(hub[1] + dy * f + py * off * amp);
+            const prev = boltPts[boltPts.length - 1];
+            if (prev[0] !== jx || prev[1] !== jy) boltPts.push([jx, jy]);
+          });
+          boltPts.push(end);
+          const color = b === 2 ? terracotta : teal;
+          path(boltPts);
+          stroke(color, 4, 0.12 * energy);
+          stroke(color, 1.2, 0.75 * energy);
+        });
+      }
+
+      // Spark nodes on a couple of vertices, terracotta for contrast.
+      ctx.fillStyle = terracotta;
+      ctx.globalAlpha = 0.8 * energy;
+      pts.forEach(([x, y], i) => {
+        if (i % 3 === 0) ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+      });
+      ctx.globalAlpha = 1;
+
+      raf = requestAnimationFrame(step);
+    };
+
+    const onMove = (e: MouseEvent) => {
+      const rect = host.getBoundingClientRect();
+      target.x = e.clientX - rect.left;
+      target.y = e.clientY - rect.top;
+      if (!inside) {
+        inside = true;
+        // Fresh entry: spawn at the cursor instead of flying across.
+        if (energy < 0.02) {
+          trail.x = target.x;
+          trail.y = target.y;
+        }
+      }
+      if (!running) {
+        running = true;
+        raf = requestAnimationFrame(step);
+      }
+    };
+    const onLeave = () => {
+      inside = false;
+    };
+    host.addEventListener("mousemove", onMove);
+    host.addEventListener("mouseleave", onLeave);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      host.removeEventListener("mousemove", onMove);
+      host.removeEventListener("mouseleave", onLeave);
+      ro.disconnect();
+    };
+  }, [prefersReducedMotion]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
    Page
    ──────────────────────────────────────────────────────────────── */
 
@@ -1754,9 +1957,19 @@ export default function Home() {
         style={{
           padding: "clamp(80px, 10vw, 130px) clamp(32px, 7vw, 96px)",
           backgroundColor: "#ffffc7",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <div style={{ maxWidth: "1140px", margin: "0 auto" }}>
+        {/* <ElectricTrail /> */}
+        <div
+          style={{
+            maxWidth: "1140px",
+            margin: "0 auto",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
           <div className="reveal" style={{ marginBottom: "72px" }}>
             <Eyebrow label="Expertise" />
             <h2
