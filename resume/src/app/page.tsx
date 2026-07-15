@@ -282,6 +282,8 @@ const PROJECTS = [
       "OAuth2 auth flows, multi-tenant database design, GCP deployment (Cloud Run, Cloud SQL), and what it actually means to ship production software.",
     accent: "#548687",
     github: "",
+    driveUrl:
+      "https://drive.google.com/drive/u/1/folders/15xUl5-UfRyGCccjMPm35RMbUDuSJ3yk3",
   },
   {
     num: "05",
@@ -2297,6 +2299,88 @@ export default function Home() {
                                       <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
                                     </svg>
                                     View on GitHub
+                                  </span>
+                                </Rippleable>
+                              ) : project.driveUrl ? (
+                                <Rippleable
+                                  as="a"
+                                  href={project.driveUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  rippleColor="rgba(255,255,199,0.12)"
+                                  aria-label={`${project.title} on Google Drive (opens in a new tab)`}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "10px",
+                                    padding: "12px 26px",
+                                    border: `1px solid ${project.accent}66`,
+                                    background: "#1a1a1a",
+                                    color: "#ffffc7",
+                                    textDecoration: "none",
+                                    fontSize: "11px",
+                                    letterSpacing: "2px",
+                                    textTransform: "uppercase",
+                                    fontWeight: 700,
+                                    transition:
+                                      "border-color 0.2s ease, transform 0.2s ease",
+                                  }}
+                                  onMouseEnter={(
+                                    e: React.MouseEvent<HTMLAnchorElement>,
+                                  ) => {
+                                    e.currentTarget.style.borderColor =
+                                      project.accent;
+                                    e.currentTarget.style.transform =
+                                      "translateY(-2px)";
+                                  }}
+                                  onMouseLeave={(
+                                    e: React.MouseEvent<HTMLAnchorElement>,
+                                  ) => {
+                                    e.currentTarget.style.borderColor = `${project.accent}66`;
+                                    e.currentTarget.style.transform = "";
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      position: "relative",
+                                      zIndex: 1,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "10px",
+                                    }}
+                                  >
+                                    <svg
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 87.3 78"
+                                      aria-hidden="true"
+                                    >
+                                      <path
+                                        d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z"
+                                        fill="#0066da"
+                                      />
+                                      <path
+                                        d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z"
+                                        fill="#00ac47"
+                                      />
+                                      <path
+                                        d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z"
+                                        fill="#ea4335"
+                                      />
+                                      <path
+                                        d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z"
+                                        fill="#00832d"
+                                      />
+                                      <path
+                                        d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z"
+                                        fill="#2684fc"
+                                      />
+                                      <path
+                                        d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z"
+                                        fill="#ffba00"
+                                      />
+                                    </svg>
+                                    View on Google Drive
                                   </span>
                                 </Rippleable>
                               ) : (
